@@ -1,0 +1,36 @@
+# Meta-level workflow for incident response
+#
+# This YAML describes how the IncidentTriage agent, ThreatHunter agent, and Response agent
+# communicate asynchronously to handle security incidents end-to-end.
+
+workflow:
+  name: "Incident_Response_Workflow"
+  description: "Orchestrates triage, hunting, and response."
+
+  # Example agent flow:
+  agents_sequence:
+    - agent: "IncidentTriage"
+      triggers_on: "new_alert_received"
+      outputs:
+        - name: "alert_validated"
+          type: bool
+        - name: "parsed_incident_data"
+          type: object
+
+    - agent: "ThreatHunter"
+      condition: "alert_validated == true"
+      inputs:
+        - "parsed_incident_data"
+      outputs:
+        - name: "threat_report"
+          type: object
+
+    - agent: "ResponseAgent"
+      condition: "threat_report.severity > 5"
+      inputs:
+        - "threat_report"
+      outputs:
+        - name: "remediation_actions"
+          type: object
+
+  # Additional branching or parallel actions can be added as needed.
