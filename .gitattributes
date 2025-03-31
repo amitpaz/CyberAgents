@@ -1,0 +1,7 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Mark certain file types as binary
+*.png binary
+*.jpg binary
+*.gif binary
