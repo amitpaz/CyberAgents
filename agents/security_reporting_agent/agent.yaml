@@ -1,0 +1,18 @@
+# TEMPORARY PLACEHOLDER — TO BE REPLACED
+#
+# This is a temporary YAML structure for security_reporting_agent.
+# Replace with full agent definition including metadata, responsibilities, tools, steps, inputs, and outputs.
+
+agent:
+  name: "security_reporting_agent"
+  uuid: "00000000-0000-0000-0000-000000000000"
+  responsibilities: "TODO: Define responsibilities for security reporting agent."
+
+system_prompt: |
+  TODO: Provide a system prompt for this agent.
+
+tools: []
+external_knowledge: []
+inputs: []
+outputs: []
+steps: []
