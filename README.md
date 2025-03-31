@@ -1,2 +1,7 @@
-# CyberAgents
-CyberAgents is a repository dedicated to housing cooperative cybersecurity "agents"—modular entities each with its own purpose, responsibilities, and domain knowledge. These agents work together to streamline and enhance security operations, from identifying threats to investigating and containing them.
+# Cyber AI Agents Repository
+
+This repository contains YAML-defined AI agents specialized for cybersecurity operations.
+Each agent is in its own directory under `agents/`.
+The `workflows/` directory contains meta-level YAML definitions describing how agents interact.
+
+Refer to individual sub-directories for more information.
