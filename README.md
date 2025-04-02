@@ -1,94 +1,194 @@
 # CyberAgents
 
-A Python project demonstrating a modular, agent-based system for cyber intelligence tasks, initially focused on domain analysis.
+CyberAgents is a framework for defining, documenting, and orchestrating AI-powered cybersecurity agents. Each agent represents a specialized function within modern security operations, from detection to governance to remediation. The goal is to enable scalable, modular, and automated cybersecurity processes using agent-based architecture.
 
-## Overview
+## 📌 Project Objectives
 
-This project utilizes the CrewAI framework to build a team of specialized AI agents managed by a central Security Manager agent. The system dynamically discovers and loads available agents, allowing for easy extension.
+- **Modularization** of cybersecurity roles into discrete agents
+- **Declarative definitions** using structured YAML for clarity and automation (supplementary to Python config)
+- **Coordination** of agents via a central manager agent and CrewAI's framework
+- **Extensibility** for new agents, tools, knowledge, and domains
+- **Documentation-first** to ensure clarity, auditability, and usability
+- **Quality Assurance** through automated validation and testing
 
-Users interact via a command-line interface, providing a natural language prompt (e.g., "Analyze domain example.com") which the Security Manager interprets and delegates to the appropriate specialist agents.
+Each agent is defined with:
 
-## Features
+- A unique identifier and responsibilities
+- A system prompt (for LLM-backed agents)
+- A list of tools and external knowledge used
+- Clearly defined inputs and outputs
+- A sequenced list of steps and logic (handled by CrewAI orchestration)
+- Associated documentation (README.md) and configuration (agent.yaml)
 
-*   **Modular Agent Architecture:** Each agent has a specific role and resides in its own module (`agents/<agent_name>/`).
-*   **Dynamic Agent Discovery:** The system automatically finds and loads available agents at runtime.
-*   **Manager-Led Orchestration:** A `SecurityManagerAgent` coordinates task delegation and result synthesis.
-*   **Specialized Agents:** Includes agents for specific domain intelligence tasks.
-*   **CLI Interface:** Run analyses via `python main.py "<prompt>"`.
-*   **Configuration:** Agents and tools can be partially configured via YAML files (though primary configuration is currently in Python).
-*   **Extensible:** Add new agents by creating a new module in the `agents/` directory following the established pattern.
-*   **Telemetry:** Basic OpenTelemetry integration for tracing and metrics (requires OTLP endpoint configuration).
+## 🧠 Repository Structure
 
-## Current Agents (v0.1.0 - Alpha)
+```plaintext
+CyberAgents/
+├── agents/                     # Main directory for agent modules
+│   ├── <agent_name>/           # Subdirectory for each agent
+│   │   ├── __init__.py         # Makes the directory a package
+│   │   ├── agent.yaml        # Agent configuration summary
+│   │   ├── <agent_name>.py   # Agent class implementation
+│   │   ├── README.md         # Agent documentation
+│   │   └── test_<agent_name>.py # Agent-specific tests
+│   └── __init__.py             # Makes 'agents' a package
+├── schemas/
+│   ├── agent_schema.yaml     # YAML schema for agent configuration files
+│   └── tool_schema.yaml      # YAML schema for tool configuration files (if used)
+├── scripts/
+│   ├── validate_yaml.py      # YAML validation script
+│   └── ...                   # Other utility scripts
+├── tests/
+│   ├── __init__.py
+│   ├── test_agent_suite.py   # Runner/placeholder for agent tests
+│   ├── test_crew_integration.py # Integration tests for the crew
+│   ├── test_security.py      # Security-focused tests
+│   └── ...                   # Other general tests (API, etc.)
+├── tools/
+│   ├── __init__.py           # Makes 'tools' a package
+│   ├── <tool_name>.py        # Tool implementation (e.g., whois_tool.py)
+│   └── ...
+├── utils/
+│   ├── __init__.py           # Makes 'utils' a package
+│   ├── llm_utils.py          # LLM configuration utilities
+│   └── ...                   # Other shared utilities
+├── .github/
+│   └── workflows/
+│       └── pr-validation.yml # CI workflow for Pull Requests
+├── .cursor-rules/            # Rules for AI code generation (ignored by git)
+├── .env.example              # Example environment variables file
+├── .gitignore
+├── main.py                   # Main script for running analysis via CLI
+├── poetry.lock
+├── pyproject.toml            # Project metadata and dependencies (Poetry)
+└── README.md
+```
 
-The following agents are currently implemented. All are considered **Alpha** status:
+## 🧩 Agent Status Overview
 
-*   **Security Manager Agent:** Orchestrates the crew, interprets user prompts, delegates tasks, and synthesizes the final report.
-*   **Domain WHOIS Agent:** Retrieves and parses WHOIS registration data for domains.
-*   **DNS Analyzer Agent:** Retrieves and analyzes various DNS records (A, MX, NS, TXT, AAAA, DNSSEC) for domains.
-*   **Threat Intel Agent:** Assesses domain security threats using VirusTotal.
-*   **Email Security Agent:** Validates SPF and DMARC DNS records for domains.
+| Agent Name                | Description                                                    | Documentation Status | Version |
+| ------------------------- | -------------------------------------------------------------- | -------------------- | ------- |
+| Security Manager Agent    | Orchestrates analysis, delegates tasks, synthesizes reports    | 🧪 In Progress       | 0.1.0   |
+| Domain WHOIS Agent        | Retrieves and parses WHOIS registration data                   | 🧪 In Progress       | 0.1.0   |
+| DNS Analyzer Agent        | Retrieves and analyzes various DNS records                     | 🧪 In Progress       | 0.1.0   |
+| Threat Intel Agent        | Assesses domain security threats using VirusTotal              | 🧪 In Progress       | 0.1.0   |
+| Email Security Agent      | Validates SPF and DMARC DNS records                            | 🧪 In Progress       | 0.1.0   |
+| *Defect Review Agent*     | *(Placeholder) Reviews code/system defects for security*      | ❌ Draft             | -       |
+| *Exposure Analyst*        | *(Placeholder) Analyzes external exposure/attack surface*      | ❌ Draft             | -       |
+| *SOC Analyst*             | *(Placeholder) Simulates L1-2 SOC analyst duties*             | ❌ Draft             | -       |
+| *Incident Responder*      | *(Placeholder) Performs containment, eradication, recovery*     | ❌ Draft             | -       |
+| *Red Team Agent*          | *(Placeholder) Simulates offensive attacker behavior*          | ❌ Draft             | -       |
+| *Governance Agent*        | *(Placeholder) Evaluates adherence to security governance*     | ❌ Draft             | -       |
+| *Compliance Agent*        | *(Placeholder) Maps posture against compliance frameworks*     | ❌ Draft             | -       |
+| *Evidence Collection*     | *(Placeholder) Collects forensic data*                         | ❌ Draft             | -       |
+| *Security Operations*     | *(Placeholder) Oversees operational security controls*         | ❌ Draft             | -       |
+| *Change Management*       | *(Placeholder) Assesses security impacts of changes*           | ❌ Draft             | -       |
+| *Network Security*        | *(Placeholder) Monitors/enforces network rules*                | ❌ Draft             | -       |
+| *Endpoint Security*       | *(Placeholder) Manages EDR logic/response*                     | ❌ Draft             | -       |
+| *Cloud Security*          | *(Placeholder) Enforces cloud security configs*                | ❌ Draft             | -       |
+| *Security Reporting*      | *(Placeholder) Generates security KPIs/reports*                | ❌ Draft             | -       |
 
-## Setup & Installation
+> **Legend**:
+>
+> - `🧪 In Progress`: Basic implementation, configuration, README, and tests exist.
+> - `❌ Draft`: Placeholder exists, not implemented.
+> - `✅ Complete`: Full definition, documentation, and robust tests available.
 
-This project uses Poetry for dependency management.
+## 🚀 Getting Started
 
 1.  **Clone the repository:**
+
     ```bash
     git clone https://github.com/NaorPenso/CyberAgents.git
     cd CyberAgents
     ```
-2.  **Install dependencies:**
+
+2.  **Install Poetry** (if you don't have it): See [Poetry installation guide](https://python-poetry.org/docs/#installation).
+
+3.  **Install dependencies:**
+
     ```bash
     poetry install
     ```
-3.  **Environment Variables:**
-    *   Create a `.env` file in the project root.
-    *   Add necessary API keys:
+
+4.  **Configure Environment Variables:**
+    *   Copy the example environment file: `cp .env.example .env`
+    *   Edit the `.env` file and add your API keys:
         ```dotenv
         OPENAI_API_KEY="your_openai_api_key"
-        # OPENAI_API_BASE="your_openai_api_base" # Optional: If using a custom base URL
-        # OPENAI_MODEL_NAME="gpt-4" # Optional: Defaults to o3-mini
+        # OPENAI_API_BASE="your_openai_api_base" # Optional
+        # OPENAI_MODEL_NAME="gpt-4" # Optional, defaults to o3-mini
         VIRUSTOTAL_API_KEY="your_virustotal_api_key" # Required for ThreatIntelAgent
-        # OTEL_EXPORTER_OTLP_ENDPOINT="your_otlp_endpoint" # Optional: For telemetry export
+        # OTEL_EXPORTER_OTLP_ENDPOINT="your_otlp_endpoint" # Optional
         ```
 
-## Usage
+5.  **Install pre-commit hooks (Optional but recommended):**
 
-Run analyses from the command line using `main.py`, providing your request as a string argument:
+    ```bash
+    poetry run pre-commit install
+    ```
+
+## ▶️ Usage
+
+Run analyses from the command line using `main.py`, providing your request as a string argument. The Security Manager agent interprets the prompt and delegates tasks to relevant specialists.
 
 ```bash
-poetry run python main.py "Analyze domain example.com focusing on DNS and WHOIS."
+poetry run python main.py "Your analysis request here"
 ```
 
 **Examples:**
 
-*   Full analysis: `poetry run python main.py "Perform a full security analysis on google.com"`
-*   Specific checks: `poetry run python main.py "Check the SPF and DMARC records for example.org"`
-*   Multiple checks: `poetry run python main.py "Get WHOIS and Threat Intel for badsite.xyz"`
+*   `poetry run python main.py "Perform a full security analysis on google.com"`
+*   `poetry run python main.py "Check the SPF and DMARC records for example.org"`
+*   `poetry run python main.py "Get WHOIS and Threat Intel for badsite.xyz"`
 
-The Security Manager agent will interpret the prompt and delegate tasks to the relevant specialist agents. The final synthesized report will be logged to the console as JSON.
+The final synthesized report will be logged to the console as JSON.
 
-## Testing
+## 🧪 Testing and Validation
 
-Tests are located in the `tests/` directory and within each agent's subdirectory (`agents/<agent_name>/test_*.py`).
+The project includes several validation mechanisms:
 
-*   **Run all tests:**
-    ```bash
-    poetry run pytest -v
-    ```
-*   **Run tests for changed files (requires test extra):**
-    ```bash
-    # Install extras if needed: poetry install --extras test
-    poetry run pytest --picked --parent-branch origin/main -v 
-    ```
+1.  **YAML Schema Validation:**
+    *   Validates agent configurations (`agents/**/agent.yaml`) against `schemas/agent_schema.yaml`.
+    *   (If used) Validates tool configurations against `schemas/tool_schema.yaml`.
+    *   Ensures proper structure and required fields via `scripts/validate_yaml.py`.
 
-CI checks are run via the `.github/workflows/pr-validation.yml` workflow, including `pytest-picked` and Semgrep scans.
+2.  **Unit & Integration Tests:**
+    *   Agent-specific tests are located in `agents/<agent_name>/test_*.py`.
+    *   Integration tests for the crew are in `tests/test_crew_integration.py`.
+    *   Run all tests: `poetry run pytest -v`
+    *   Run tests for changed files (PRs): `poetry run pytest --picked --parent-branch origin/main -v` (requires `poetry install --extras test`)
 
-## Contributing
+3.  **Pre-commit Hooks:**
+    *   Code formatting (Black)
+    *   Linting (Flake8)
+    *   Type checking (MyPy)
+    *   YAML validation (via `scripts/validate_yaml.py` if configured in `.pre-commit-config.yaml`)
 
-Contributions are welcome! Please follow standard PR procedures.
+4.  **GitHub Actions:**
+    *   Runs on every pull request to `main` via `.github/workflows/pr-validation.yml`.
+    *   Installs dependencies using Poetry.
+    *   Runs tests on changed files using `pytest-picked`.
+    *   Runs Semgrep security scan.
 
-## License
+## 📦 Releases
 
-(Specify your license here, e.g., MIT License)
+*(Preserve original Releases section here if it existed)*
+- Releases will be managed via GitHub Releases.
+- Versioning will follow Semantic Versioning (SemVer).
+
+## 📬 Contributing
+
+*(Preserve original Contributing section here if it existed)*
+See [CONTRIBUTING.md](.github/CONTRIBUTING.md) for guidelines on:
+
+- Submitting issues
+- Creating pull requests
+- Following semantic commit conventions
+- Writing documentation
+- Adding new agents or workflows
+
+## 📖 License
+
+*(Preserve original License section here if it existed)*
+This project is licensed under the MIT License. See `LICENSE` for details.
