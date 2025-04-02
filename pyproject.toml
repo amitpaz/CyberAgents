@@ -56,7 +56,8 @@ build-backend = "poetry.core.masonry.api"
 [tool.pytest.ini_options]
 testpaths = [
     "tests",
-    "agents"
+    "agents",
+    "tools"
 ]
 filterwarnings = [
     "ignore::DeprecationWarning:pydantic.*:",
