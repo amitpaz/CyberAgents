@@ -28,6 +28,11 @@ from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
 
+# Import Rich for console output
+from rich.console import Console
+from rich.panel import Panel
+from rich.markdown import Markdown
+
 # Dynamically load agent base classes (adjust if base classes are defined elsewhere)
 # Assuming agent classes are defined directly in modules like domain_whois_agent.py
 # If there's a common base class, import it here.
@@ -230,7 +235,9 @@ class DomainIntelligenceCrew:
                 except Exception as metric_err:
                      logger.warning(f"Failed to record duration metric: {metric_err}")
                 
-                return {"analysis_report": final_result}
+                # The final result should be the compiled report from the manager
+                # It might be a string (Markdown?) or a complex dict. We'll handle string for now.
+                return {"analysis_report": str(final_result)}
                 
             except Exception as e:
                  try:
@@ -242,6 +249,45 @@ class DomainIntelligenceCrew:
                  logger.error(error_message, exc_info=True) # Log traceback
                  span.record_exception(e)
                  return {"error": error_message, "exception": str(e)}
+
+def display_results(results: Dict):
+    """Displays the analysis results using Rich."""
+    console = Console()
+    console.print("\n" + "-"*50) 
+
+    if "error" in results:
+        console.print(Panel(
+            f"[bold red]Error during analysis:[/bold red]\n\n{results.get('error', 'Unknown error')}\n\nException: {results.get('exception', 'N/A')}",
+            title="Analysis Failed",
+            border_style="red"
+        ))
+    elif "analysis_report" in results:
+        report_content = results["analysis_report"]
+        # Attempt to render as Markdown, fallback to plain text
+        try:
+            # Assuming the report is Markdown formatted
+            markdown = Markdown(report_content)
+            console.print(Panel(
+                markdown,
+                title="[bold green]Analysis Report[/bold green]",
+                border_style="green",
+                expand=False # Prevent panel from taking full width if content is short
+            ))
+        except Exception:
+             # Fallback if rendering Markdown fails or content isn't MD
+             console.print(Panel(
+                report_content,
+                title="[bold green]Analysis Report[/bold green]",
+                border_style="green",
+                expand=False
+            ))
+    else:
+         console.print(Panel(
+            "Analysis completed, but no report data found.",
+            title="[yellow]Analysis Result[/yellow]",
+            border_style="yellow"
+         ))
+    console.print("-"*50 + "\n")
 
 def main():
     """Main entry point, parses args and runs the analysis."""
@@ -255,10 +301,22 @@ def main():
         crew_runner = DomainIntelligenceCrew()
         logger.info(f"Starting analysis for prompt: \"{args.prompt}\"")
         results = crew_runner.run_analysis(args.prompt)
-        logger.info(f"Final Analysis Report for prompt \"{args.prompt}\":")
-        logger.info(json.dumps(results, indent=2, default=str))
+        
+        # Display results using Rich instead of logging JSON
+        display_results(results)
+        
     except Exception as e:
+        # Use Rich Console for critical errors too
+        console = Console()
+        console.print(Panel(
+            f"[bold red]Critical error during execution:[/bold red]\n\n{str(e)}",
+            title="Execution Failed",
+            border_style="red"
+        ))
         logger.error(f"Critical error during crew initialization or execution: {str(e)}", exc_info=True)
 
 if __name__ == "__main__":
+    # Need Console here if main fails before display_results
+    from rich.console import Console 
+    from rich.panel import Panel
     main() 
