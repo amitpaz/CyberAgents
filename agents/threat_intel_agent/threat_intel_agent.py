@@ -5,8 +5,9 @@ import pytest
 from crewai import Agent
 from tools.threat_tool import ThreatTool
 from utils.llm_utils import create_llm
+from agents.base_agent import BaseAgent
 
-class ThreatIntelAgent:
+class ThreatIntelAgent(BaseAgent):
     """Creates and configures the Threat Intelligence analysis agent.
 
     This agent specializes in assessing the security threat level of a domain

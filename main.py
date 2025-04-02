@@ -14,6 +14,9 @@ from typing import Dict, List, Optional, Type
 import json
 import argparse # Import argparse for CLI arguments
 import time # Import time for monotonic clock
+import re # Add re for regex validation
+import yaml # Add PyYAML import
+import csv # Add csv import
 
 from crewai import Agent, Crew, Task
 from dotenv import load_dotenv
@@ -32,10 +35,12 @@ from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExp
 from rich.console import Console
 from rich.panel import Panel
 from rich.markdown import Markdown
+from rich.progress import Progress, SpinnerColumn, TextColumn # Add Progress import
 
 # Dynamically load agent base classes (adjust if base classes are defined elsewhere)
 # Assuming agent classes are defined directly in modules like domain_whois_agent.py
 # If there's a common base class, import it here.
+from agents.base_agent import BaseAgent # Import the base agent class
 
 # Configure logging with OpenTelemetry
 LoggingInstrumentor().instrument()
@@ -97,46 +102,59 @@ def discover_and_load_agents(base_path: str = "agents") -> Dict[str, Type]:
     """Dynamically discovers and loads agent classes from subdirectories."""
     agent_classes = {}
     agents_dir = Path(base_path)
-    
+    # Regex to allow only valid Python module characters (alphanumeric + underscore)
+    # and prevent directory traversal or other malicious patterns.
+    valid_module_name_pattern = re.compile(r"^[a-zA-Z0-9_]+$")
+
     if not agents_dir.is_dir():
         logger.error(f"Agents directory not found: {base_path}")
         return agent_classes
 
     for item in agents_dir.iterdir():
+        # Check if it's a directory, contains __init__.py, and has a valid name
         if item.is_dir() and (item / "__init__.py").exists():
             module_name = item.name
-            # Try to import the primary module within the subdirectory
+            if not valid_module_name_pattern.match(module_name):
+                logger.warning(f"Skipping directory with invalid name: {module_name}")
+                continue # Skip potentially unsafe directory names
+
+            # Construct the expected module path (e.g., agents.some_agent.some_agent)
+            module_path = f"{base_path}.{module_name}.{module_name}"
             try:
-                module_path = f"{base_path}.{module_name}.{module_name}" # e.g., agents.domain_whois_agent.domain_whois_agent
+                # semgrep-ignore-reason: module_path derived from validated directory names & loaded classes checked for BaseAgent inheritance. See issue #17.
+                # nosemgrep: python.lang.security.audit.non-literal-import.non-literal-import
                 module = importlib.import_module(module_path)
-                
-                # Find classes within the module (could add checks for a base class)
+
+                # Find classes within the module that inherit from BaseAgent
                 for name, obj in inspect.getmembers(module, inspect.isclass):
-                    # Heuristic: Assume class name matches module name pattern or ends with 'Agent'
-                    # You might need a more robust way to identify agent classes (e.g., base class check)
-                    if name.endswith("Agent") and obj.__module__ == module.__name__:
+                    # Check: Is it a class? Does it inherit BaseAgent? Is it NOT BaseAgent itself? Was it defined in *this* module?
+                    if issubclass(obj, BaseAgent) and obj is not BaseAgent and obj.__module__ == module.__name__:
                         if name in agent_classes:
-                             logger.warning(f"Duplicate agent class name found: {name}. Overwriting.")
+                             logger.warning(f"Duplicate agent class name found: {name}. Overwriting with class from {module_path}.")
                         agent_classes[name] = obj
                         logger.info(f"Discovered agent class: {name} from {module_path}")
-                        break # Assume one main agent class per module for now
+                        # Optional: break if you expect only one agent class per file/module
+                        # break 
             except ImportError as e:
-                logger.error(f"Failed to import module {module_path}: {e}")
+                # Log if the expected agent module (e.g., agents.X.X) itself cannot be imported
+                logger.error(f"Failed to import primary agent module {module_path}: {e}")
             except Exception as e:
-                 logger.error(f"Error loading agent from {module_name}: {e}")
-                 
+                 # Catch other potential errors during import or inspection
+                 logger.error(f"Error loading agent from directory {module_name} (module path {module_path}): {e}")
+
     if not agent_classes:
-         logger.error(f"No agent classes were discovered in {base_path}. Ensure agent modules and classes are correctly defined.")
-         
+         logger.warning(f"No agent classes inheriting from BaseAgent were discovered in {base_path}.")
+
     return agent_classes
 
 class DomainIntelligenceCrew:
     """Orchestrates the domain intelligence analysis crew, managed by a Security Manager."""
 
-    def __init__(self):
+    def __init__(self, verbose: bool = False):
         """Initialize the crew by discovering and instantiating all agents."""
         self.tracer = trace.get_tracer(__name__)
-        self.meter = get_meter_provider().get_meter(__name__) # Assuming telemetry setup handles potential errors
+        self.meter = get_meter_provider().get_meter(__name__)
+        self.verbose_mode = verbose # Store verbose mode
         
         # Metrics setup (assuming meter is valid)
         self.analysis_duration = self.meter.create_histogram(
@@ -180,12 +198,12 @@ class DomainIntelligenceCrew:
         self.crew = Crew(
             agents=self.crew_agents,
             tasks=[],
-            verbose=True,
+            verbose=self.verbose_mode,
             memory=True,
             # manager_llm=self.manager_agent_instance.agent.llm # Example: Ensure manager uses its own LLM if needed
         )
 
-    def run_analysis(self, user_prompt: str) -> Dict:
+    def run_analysis(self, user_prompt: str, output_format: str = 'rich') -> Dict:
         """Runs analysis based on user prompt, orchestrated by the Security Manager."""
         with self.tracer.start_as_current_span("run_analysis") as span:
             span.set_attribute("user_prompt", user_prompt)
@@ -226,7 +244,21 @@ class DomainIntelligenceCrew:
                 )
                 
                 self.crew.tasks = [manager_task]
-                final_result = self.crew.kickoff()
+
+                final_result = None
+                # Use Rich Progress only if output is 'rich' and not verbose (verbose already shows logs)
+                if output_format == 'rich' and not self.verbose_mode:
+                    with Progress(
+                        SpinnerColumn(),
+                        TextColumn("[progress.description]{task.description}"),
+                        transient=True,
+                    ) as progress:
+                        progress.add_task("Crew AI running analysis...", total=None)
+                        final_result = self.crew.kickoff()
+                else:
+                    # Run without progress bar for JSON output or if verbose logging is enabled
+                    final_result = self.crew.kickoff()
+
                 duration = (time.monotonic() - start_time) * 1000
                 
                 # Record metrics (assuming they were created successfully)
@@ -235,8 +267,7 @@ class DomainIntelligenceCrew:
                 except Exception as metric_err:
                      logger.warning(f"Failed to record duration metric: {metric_err}")
                 
-                # The final result should be the compiled report from the manager
-                # It might be a string (Markdown?) or a complex dict. We'll handle string for now.
+                # Return the raw result (likely a string)
                 return {"analysis_report": str(final_result)}
                 
             except Exception as e:
@@ -250,60 +281,125 @@ class DomainIntelligenceCrew:
                  span.record_exception(e)
                  return {"error": error_message, "exception": str(e)}
 
-def display_results(results: Dict):
-    """Displays the analysis results using Rich."""
+def display_results(results: Dict, output_format: str = 'rich'):
+    """Displays the analysis results based on the chosen format."""
     console = Console()
-    console.print("\n" + "-"*50) 
 
-    if "error" in results:
-        console.print(Panel(
-            f"[bold red]Error during analysis:[/bold red]\n\n{results.get('error', 'Unknown error')}\n\nException: {results.get('exception', 'N/A')}",
-            title="Analysis Failed",
-            border_style="red"
-        ))
-    elif "analysis_report" in results:
-        report_content = results["analysis_report"]
-        # Attempt to render as Markdown, fallback to plain text
-        try:
-            # Assuming the report is Markdown formatted
-            markdown = Markdown(report_content)
+    if output_format == 'rich':
+        console.print("\n" + "-"*50) 
+
+        if "error" in results:
             console.print(Panel(
-                markdown,
-                title="[bold green]Analysis Report[/bold green]",
-                border_style="green",
-                expand=False # Prevent panel from taking full width if content is short
+                f"[bold red]Error during analysis:[/bold red]\n\n{results.get('error', 'Unknown error')}\n\nException: {results.get('exception', 'N/A')}",
+                title="Analysis Failed",
+                border_style="red"
             ))
-        except Exception:
-             # Fallback if rendering Markdown fails or content isn't MD
+        elif "analysis_report" in results:
+            report_content = results["analysis_report"]
+            # Attempt to render as Markdown, fallback to plain text
+            try:
+                # Assuming the report is Markdown formatted
+                markdown = Markdown(report_content)
+                console.print(Panel(
+                    markdown,
+                    title="[bold green]Analysis Report[/bold green]",
+                    border_style="green",
+                    expand=False # Prevent panel from taking full width if content is short
+                ))
+            except Exception:
+                 # Fallback if rendering Markdown fails or content isn't MD
+                 console.print(Panel(
+                    report_content,
+                    title="[bold green]Analysis Report[/bold green]",
+                    border_style="green",
+                    expand=False
+                ))
+        else:
              console.print(Panel(
-                report_content,
-                title="[bold green]Analysis Report[/bold green]",
-                border_style="green",
-                expand=False
-            ))
+                "Analysis completed, but no report data found.",
+                title="[yellow]Analysis Result[/yellow]",
+                border_style="yellow"
+             ))
+        console.print("-"*50 + "\n")
+
+    elif output_format == 'json':
+        print(json.dumps(results, indent=2)) # Pretty print JSON to stdout
+
+    elif output_format in ['csv', 'yaml', 'html']:
+        if "error" in results:
+             console.print(f"[bold red]Error during analysis:[/bold red] {results.get('error', 'Unknown error')}. Cannot generate {output_format} file.")
+             return
+        if "analysis_report" not in results:
+            console.print(f"[yellow]Analysis completed, but no report data found.[/yellow] Cannot generate {output_format} file.")
+            return
+
+        report_content = results["analysis_report"]
+        filename = f"analysis_report.{output_format}"
+        try:
+            with open(filename, 'w', encoding='utf-8') as f:
+                if output_format == 'yaml':
+                    # Try to dump as YAML if it looks like structured data, else dump string
+                    try:
+                        # Attempt to parse as JSON first to see if it's structured
+                        parsed_content = json.loads(report_content)
+                        yaml.dump(parsed_content, f, default_flow_style=False)
+                    except json.JSONDecodeError:
+                         # If not JSON, dump as a plain multi-line string
+                         yaml.dump({'report': report_content}, f, default_flow_style=False)
+                elif output_format == 'csv':
+                    # Basic CSV handling: assumes report might be simple key-value pairs
+                    # This might need significant refinement based on actual report structure
+                    lines = report_content.strip().split('\n')
+                    writer = csv.writer(f)
+                    # Simple heuristic: if lines look like 'Key: Value', split them
+                    likely_kv = all(': ' in line for line in lines[:5]) # Check first few lines
+                    if likely_kv:
+                        writer.writerow(['Key', 'Value']) # Header
+                        for line in lines:
+                            parts = line.split(': ', 1)
+                            if len(parts) == 2:
+                                writer.writerow([parts[0].strip(), parts[1].strip()])
+                            else:
+                                writer.writerow([line]) # Write raw line if no colon
+                    else:
+                         # Write the whole report content as one cell/row if not key-value like
+                         writer.writerow(['Report Content'])
+                         writer.writerow([report_content])
+                else: # html or other text formats
+                    f.write(report_content)
+            console.print(f"[green]Report saved to {filename}[/green]")
+        except Exception as e:
+            console.print(f"[bold red]Error writing report to {filename}: {e}[/bold red]")
     else:
-         console.print(Panel(
-            "Analysis completed, but no report data found.",
-            title="[yellow]Analysis Result[/yellow]",
-            border_style="yellow"
-         ))
-    console.print("-"*50 + "\n")
+        console.print(f"[bold red]Unknown output format: {output_format}[/bold red]")
 
 def main():
     """Main entry point, parses args and runs the analysis."""
     setup_telemetry()
     parser = argparse.ArgumentParser(description="Run security analysis using a managed crew of agents.")
     parser.add_argument("prompt", type=str, help="The user request (e.g., 'Analyze domain walla.co.il')")
+    parser.add_argument(
+        "-v", "--verbose",
+        action="store_true",
+        help="Enable verbose logging for CrewAI agents."
+    )
+    parser.add_argument(
+        "-o", "--output",
+        type=str,
+        default="rich",
+        choices=['rich', 'json', 'csv', 'yaml', 'html'],
+        help="Specify the output format (default: rich)."
+    )
     args = parser.parse_args()
     
     try:
         logger.info("Initializing Domain Intelligence Crew...")
-        crew_runner = DomainIntelligenceCrew()
+        crew_runner = DomainIntelligenceCrew(verbose=args.verbose)
         logger.info(f"Starting analysis for prompt: \"{args.prompt}\"")
-        results = crew_runner.run_analysis(args.prompt)
+        results = crew_runner.run_analysis(args.prompt, output_format=args.output)
         
         # Display results using Rich instead of logging JSON
-        display_results(results)
+        display_results(results, output_format=args.output)
         
     except Exception as e:
         # Use Rich Console for critical errors too

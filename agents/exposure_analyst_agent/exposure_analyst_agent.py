@@ -11,10 +11,11 @@ from tools import (
 )
 from utils.llm_utils import create_llm
 import logging
+from agents.base_agent import BaseAgent # Import BaseAgent
 
 logger = logging.getLogger(__name__)
 
-class ExposureAnalystAgent:
+class ExposureAnalystAgent(BaseAgent): # Inherit from BaseAgent
     """Creates and configures the Exposure Analyst agent.
     This agent identifies potential external facing assets like subdomains,
     IP blocks, and internet-connected hosts/services for a given domain or organization.

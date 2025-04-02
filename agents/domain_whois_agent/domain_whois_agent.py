@@ -1,10 +1,10 @@
 """Agent responsible for WHOIS analysis."""
 
-from crewai import Agent
 from tools.whois_tool import WhoisTool
 from utils.llm_utils import create_llm
+from agents.base_agent import BaseAgent
 
-class DomainWhoisAgent:
+class DomainWhoisAgent(BaseAgent):
     """Creates and configures the WHOIS analysis agent.
 
     This agent specializes in retrieving and parsing WHOIS registration data
