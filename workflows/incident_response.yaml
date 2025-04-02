@@ -1,36 +1,47 @@
+---
 # Meta-level workflow for incident response
 #
 # This YAML describes how the IncidentTriage agent, ThreatHunter agent, and Response agent
 # communicate asynchronously to handle security incidents end-to-end.
 
-workflow:
-  name: "Incident_Response_Workflow"
-  description: "Orchestrates triage, hunting, and response."
+name: "Incident Response Workflow"
+description: "Orchestrates triage, hunting, and response for security incidents"
+version: "1.0.0"
 
-  # Example agent flow:
-  agents_sequence:
-    - agent: "IncidentTriage"
-      triggers_on: "new_alert_received"
-      outputs:
-        - name: "alert_validated"
-          type: bool
-        - name: "parsed_incident_data"
-          type: object
+steps:
+  - name: "Triage"
+    action: "run_agent"
+    inputs:
+      agent: "IncidentTriage"
+      trigger: "new_alert_received"
 
-    - agent: "ThreatHunter"
-      condition: "alert_validated == true"
-      inputs:
-        - "parsed_incident_data"
-      outputs:
-        - name: "threat_report"
-          type: object
+  - name: "Hunt"
+    action: "run_agent"
+    inputs:
+      agent: "ThreatHunter"
+      data: "$outputs.Triage.parsed_incident_data"
+    condition: "$outputs.Triage.alert_validated == true"
+    depends_on: ["Triage"]
 
-    - agent: "ResponseAgent"
-      condition: "threat_report.severity > 5"
-      inputs:
-        - "threat_report"
-      outputs:
-        - name: "remediation_actions"
-          type: object
+  - name: "Respond"
+    action: "run_agent"
+    inputs:
+      agent: "ResponseAgent"
+      data: "$outputs.Hunt.threat_report"
+    condition: "$outputs.Hunt.threat_report.severity > 5"
+    depends_on: ["Hunt"]
+    retry:
+      max_attempts: 3
+      delay: 60
+      multiplier: 2.0
 
-  # Additional branching or parallel actions can be added as needed.
+timeout: 3600  # 1 hour
+on_failure: "stop"
+environment:
+  LOG_LEVEL: "INFO"
+  ALERT_THRESHOLD: "5"
+
+tags:
+  - "security"
+  - "incident-response"
+  - "automated"

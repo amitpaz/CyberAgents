@@ -1,0 +1,91 @@
+$schema: http://json-schema.org/draft-07/schema#
+title: Workflow Schema
+description: Schema for defining workflow configurations
+
+type: object
+required:
+  - name
+  - description
+  - steps
+
+properties:
+  name:
+    type: string
+    description: Name of the workflow
+
+  description:
+    type: string
+    description: Description of what the workflow does
+
+  version:
+    type: string
+    pattern: ^[0-9]+\.[0-9]+\.[0-9]+$
+    description: Semantic version of the workflow
+
+  steps:
+    type: array
+    description: List of steps in the workflow
+    minItems: 1
+    items:
+      type: object
+      required:
+        - name
+        - action
+      properties:
+        name:
+          type: string
+          description: Name of the step
+
+        action:
+          type: string
+          description: Action to perform in this step
+
+        inputs:
+          type: object
+          description: Input parameters for the action
+
+        depends_on:
+          type: array
+          description: List of step names this step depends on
+          items:
+            type: string
+
+        condition:
+          type: string
+          description: Condition that must be met for this step to execute
+
+        retry:
+          type: object
+          description: Retry configuration for the step
+          properties:
+            max_attempts:
+              type: integer
+              minimum: 1
+            delay:
+              type: integer
+              minimum: 0
+            multiplier:
+              type: number
+              minimum: 1.0
+
+  timeout:
+    type: integer
+    minimum: 0
+    description: Maximum time in seconds the workflow can run
+
+  on_failure:
+    type: string
+    enum: [continue, stop, rollback]
+    description: Action to take when a step fails
+
+  environment:
+    type: object
+    description: Environment variables for the workflow
+    additionalProperties:
+      type: string
+
+  tags:
+    type: array
+    description: Tags for categorizing the workflow
+    items:
+      type: string

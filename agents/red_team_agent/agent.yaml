@@ -1,12 +1,15 @@
+---
 # TEMPORARY PLACEHOLDER — TO BE REPLACED
 #
 # This is a temporary YAML structure for red_team_agent.
-# Replace with full agent definition including metadata, responsibilities, tools, steps, inputs, and outputs.
+# Replace with full agent definition including metadata, responsibilities, tools, steps, inputs,
+# and outputs.
 
 agent:
   name: "red_team_agent"
   uuid: "00000000-0000-0000-0000-000000000000"
-  responsibilities: "TODO: Define responsibilities for red team agent."
+  responsibilities: >-
+    TODO: Define responsibilities for red_team_agent.
 
 system_prompt: |
   TODO: Provide a system prompt for this agent.
