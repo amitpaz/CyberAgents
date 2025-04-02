@@ -1,5 +1,6 @@
 """Main FastAPI application module."""
 
+import os # Import os to access environment variables
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,6 +9,16 @@ from api.routers import agents
 
 # Load environment variables
 load_dotenv()
+
+# Get allowed origins from environment variable
+# Expects a comma-separated string, e.g., "http://localhost:3000,https://myapp.com"
+allowed_origins_str = os.getenv("ALLOWED_ORIGINS", "")
+allowed_origins = [origin.strip() for origin in allowed_origins_str.split(",") if origin.strip()] 
+# Default to empty list if variable is not set or empty, which is safer than ["*"]
+if not allowed_origins:
+    # You might want to log a warning here in a real application
+    # print("Warning: ALLOWED_ORIGINS environment variable not set. CORS will be restrictive.")
+    pass # Keep allowed_origins as []
 
 # Create FastAPI app
 app = FastAPI(
@@ -19,10 +30,10 @@ app = FastAPI(
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace with specific origins
+    allow_origins=allowed_origins, # Use the variable here
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"], # Consider restricting methods (e.g., ["GET", "POST"]) in production
+    allow_headers=["*"], # Consider restricting headers in production
 )
 
 # Include routers
