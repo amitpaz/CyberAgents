@@ -64,7 +64,7 @@
           run: |
             # Fetch the target branch (e.g., main)
             git fetch origin ${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}
-            poetry run pytest --picked --picked-log=changes.log --parent-branch origin/${{ github.base_ref }} -v
+            poetry run pytest --picked --parent-branch origin/${{ github.base_ref }} -v
   
         # Optional: Run all tests if needed, maybe on main branch pushes only
         # - name: Run all tests
