@@ -4,29 +4,30 @@ from typing import Any, Dict, List, Optional
 
 from crewai import Agent
 from fastapi import HTTPException
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class AgentConfig(BaseModel):
-    """Configuration model for agent creation."""
+    """Configuration for an agent."""
+    name: str
+    role: str
+    goal: str
+    backstory: str
+    tools: List[str] = []
+    verbose: bool = True
+    allow_delegation: bool = False
 
-    name: str = Field(..., min_length=1, max_length=100)
-    role: str = Field(..., min_length=1, max_length=100)
-    goal: str = Field(..., min_length=1, max_length=500)
-    backstory: str = Field(..., min_length=1, max_length=1000)
-    tools: Optional[List[str]] = Field(default_factory=list)
-    verbose: bool = Field(default=True)
-    allow_delegation: bool = Field(default=True)
-
-    @validator("name", "role", "goal", "backstory")
-    def validate_non_empty(cls, v):
+    @field_validator("name", "role", "goal", "backstory")
+    @classmethod
+    def validate_non_empty(cls, v: str) -> str:
         """Validate that fields are not empty or whitespace only."""
         if not v.strip():
             raise ValueError("Field cannot be empty or whitespace only")
         return v.strip()
 
-    @validator("tools")
-    def validate_tools(cls, v):
+    @field_validator("tools")
+    @classmethod
+    def validate_tools(cls, v: List[str]) -> List[str]:
         """Validate tools list format."""
         if v is None:
             return []
