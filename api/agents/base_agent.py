@@ -1,10 +1,15 @@
+"""Base agent module for defining common agent functionality."""
+
+from typing import Any, Dict, List, Optional
+
 from crewai import Agent
-from typing import Optional, List
-from pydantic import BaseModel, Field, validator
 from fastapi import HTTPException
+from pydantic import BaseModel, Field, validator
 
 
 class AgentConfig(BaseModel):
+    """Configuration model for agent creation."""
+
     name: str = Field(..., min_length=1, max_length=100)
     role: str = Field(..., min_length=1, max_length=100)
     goal: str = Field(..., min_length=1, max_length=500)
@@ -15,12 +20,14 @@ class AgentConfig(BaseModel):
 
     @validator("name", "role", "goal", "backstory")
     def validate_non_empty(cls, v):
+        """Validate that fields are not empty or whitespace only."""
         if not v.strip():
-            raise ValueError("Field cannot be empty or contain only whitespace")
+            raise ValueError("Field cannot be empty or whitespace only")
         return v.strip()
 
     @validator("tools")
     def validate_tools(cls, v):
+        """Validate tools list format."""
         if v is None:
             return []
         if not isinstance(v, list):
@@ -29,14 +36,13 @@ class AgentConfig(BaseModel):
 
 
 def create_agent(config: AgentConfig) -> Agent:
-    """
-    Create a CrewAI agent based on the provided configuration.
+    """Create a CrewAI agent based on the provided configuration.
 
     Args:
-        config (AgentConfig): Configuration for the agent
+        config: Configuration for the agent
 
     Returns:
-        Agent: A configured CrewAI agent
+        A configured CrewAI agent
 
     Raises:
         HTTPException: If agent creation fails
@@ -52,4 +58,41 @@ def create_agent(config: AgentConfig) -> Agent:
             allow_delegation=config.allow_delegation,
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to create agent: {str(e)}")
+        error_msg = f"Failed to create agent: {str(e)}"
+        raise HTTPException(status_code=500, detail=error_msg)
+
+
+class BaseAgent:
+    """Base class for all agents providing common functionality."""
+
+    def __init__(self, config: Dict[str, Any]) -> None:
+        """Initialize the agent with configuration.
+
+        Args:
+            config: Dictionary containing agent configuration
+        """
+        self.config = config
+        self.tools = self._load_tools()
+
+    def _load_tools(self) -> List[Dict[str, Any]]:
+        """Load and validate tools from configuration.
+
+        Returns:
+            List of tool configurations
+        """
+        tools = self.config.get("tools", [])
+        if not isinstance(tools, list):
+            raise ValueError("Tools must be a list")
+        return tools
+
+    def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Process input data and return results.
+
+        Args:
+            input_data: Dictionary containing input data
+
+        Returns:
+            Dictionary containing processed results
+        """
+        # Implementation here
+        return {}

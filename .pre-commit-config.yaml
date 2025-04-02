@@ -4,47 +4,62 @@ repos:
     rev: v4.5.0
     hooks:
       - id: trailing-whitespace
+        exclude: ^node_modules/
       - id: end-of-file-fixer
+        exclude: ^node_modules/
       - id: check-yaml
+        exclude: ^node_modules/
       - id: check-added-large-files
+        exclude: ^node_modules/
       - id: check-symlinks
+        exclude: ^node_modules/
       - id: mixed-line-ending
+        exclude: ^node_modules/
   - repo: https://github.com/psf/black
     rev: 24.3.0
     hooks:
       - id: black
         language_version: python3.9
+        exclude: ^(node_modules/|npm/|\.npm/)
   - repo: https://github.com/pycqa/isort
     rev: 5.13.2
     hooks:
       - id: isort
         args: ["--profile", "black"]
+        exclude: ^(node_modules/|npm/|\.npm/)
   - repo: https://github.com/pycqa/flake8
     rev: 7.0.0
     hooks:
       - id: flake8
         additional_dependencies: [flake8-docstrings]
+        exclude: ^(node_modules/|npm/|\.npm/)
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.8.0
     hooks:
       - id: mypy
-        additional_dependencies: [types-PyYAML]
+        args: ["--explicit-package-bases", "--ignore-missing-imports"]
+        additional_dependencies:
+          - types-PyYAML
+          - types-jsonschema
+        exclude: ^(node_modules/|npm/|\.npm/)
   - repo: https://github.com/adrienverge/yamllint.git
     rev: v1.33.0
     hooks:
       - id: yamllint
+        exclude: ^(node_modules/|npm/|\.npm/)
   - repo: https://github.com/executablebooks/mdformat
     rev: 0.7.16
     hooks:
       - id: mdformat
         additional_dependencies: [mdformat-black]
-
--   repo: local
+        exclude: ^(node_modules/|npm/|\.npm/)
+  - repo: local
     hooks:
-    -   id: validate-yaml-schema
+      - id: validate-yaml-schema
         name: Validate YAML Schema
         entry: python scripts/validate_yaml.py
         language: python
         types: [yaml]
         files: ^agents/.*/agent\.yaml$
-        additional_dependencies: [jsonschema]
+        exclude: ^(node_modules/|npm/|\.npm/)
+        additional_dependencies: [jsonschema, pyyaml]

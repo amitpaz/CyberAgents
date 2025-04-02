@@ -2,6 +2,27 @@
 
 This document outlines the development guidelines for the CyberAgents project, including coding standards, FastAPI best practices, and tooling requirements.
 
+## Code Quality Standards
+
+### First-Party Code
+
+All first-party code must adhere to strict quality standards:
+
+- Follow PEP 8 style guide
+- Include comprehensive docstrings
+- Use type hints
+- Pass all linting checks
+- Have appropriate test coverage
+
+### Third-Party Code
+
+Third-party code (including node_modules, npm packages, and other dependencies) is excluded from our code quality checks:
+
+- Linting rules do not apply to third-party code
+- Code style requirements do not apply to third-party code
+- Documentation requirements do not apply to third-party code
+- These exclusions are enforced through configuration in .pre-commit-config.yaml and .yamllint
+
 ## Cursor IDE Configuration
 
 The project uses Cursor IDE with specific rules for development. These rules are stored in `.cursor/.cursorrules` and include:

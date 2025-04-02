@@ -1,16 +1,17 @@
 """Test suite for the agents module."""
 
-from fastapi.testclient import TestClient
-from api.main import app
-from api.agents.base_agent import AgentConfig
 import pytest
+from fastapi.testclient import TestClient
+
+from api.agents.base_agent import AgentConfig
+from api.main import app
 
 client = TestClient(app)
 
 
 def test_create_agent_with_valid_config(sample_agent_config):
-    """
-    Test creating an agent with valid configuration.
+    """Test creating an agent with valid configuration.
+
     Should return 200 status code and match the input configuration.
     """
     response = client.post("/agents/", json=sample_agent_config)
@@ -23,8 +24,8 @@ def test_create_agent_with_valid_config(sample_agent_config):
 
 
 def test_create_agent_with_missing_required_fields():
-    """
-    Test creating an agent with missing required fields.
+    """Test creating an agent with missing required fields.
+
     Should return 422 status code (validation error).
     """
     invalid_config = {
@@ -36,8 +37,8 @@ def test_create_agent_with_missing_required_fields():
 
 
 def test_create_agent_with_invalid_tools():
-    """
-    Test creating an agent with invalid tools format.
+    """Test creating an agent with invalid tools format.
+
     Should return 422 status code (validation error).
     """
     invalid_config = {
@@ -52,8 +53,8 @@ def test_create_agent_with_invalid_tools():
 
 
 def test_list_agents_empty():
-    """
-    Test listing agents when no agents exist.
+    """Test listing agents when no agents exist.
+
     Should return 200 status code and empty list.
     """
     response = client.get("/agents/")
@@ -62,9 +63,7 @@ def test_list_agents_empty():
 
 
 def test_agent_config_validation():
-    """
-    Test AgentConfig model validation.
-    """
+    """Test AgentConfig model validation."""
     # Test valid configuration
     valid_config = AgentConfig(
         name="Test Agent",

@@ -1,6 +1,12 @@
 ---
 extends: default
 
+# Ignore node_modules and npm-related directories
+ignore: |
+  node_modules/
+  npm/
+  .npm/
+
 rules:
   document-start:
     present: true
