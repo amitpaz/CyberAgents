@@ -2,8 +2,9 @@
 
 from crewai import Agent
 from utils.llm_utils import create_llm
+from agents.base_agent import BaseAgent
 
-class SecurityManagerAgent:
+class SecurityManagerAgent(BaseAgent):
     """Creates and configures the Security Manager agent.
 
     This agent acts as the central orchestrator. It interprets user requests,

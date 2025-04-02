@@ -1,10 +1,10 @@
 """Agent responsible for DNS analysis."""
 
-from crewai import Agent
 from tools.dns_tool import DNSTool
 from utils.llm_utils import create_llm
+from agents.base_agent import BaseAgent
 
-class DNSAnalyzerAgent:
+class DNSAnalyzerAgent(BaseAgent):
     """Creates and configures the DNS analysis agent.
 
     This agent specializes in retrieving and interpreting various DNS records
