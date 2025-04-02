@@ -1,0 +1,105 @@
+---
+agent:
+  name: "domain_whois_agent"
+  uuid: "123e4567-e89b-12d3-a456-426614174000"
+  role: "Domain Intelligence Analyst"
+  goal: "Gather and analyze WHOIS information for domains to identify potential security risks"
+  backstory: >-
+    A specialized agent with expertise in domain registration analysis and DNS intelligence.
+    Skilled in identifying suspicious domain patterns, registration anomalies, and potential
+    threat actor infrastructure.
+  responsibilities: >-
+    Analyze domain registration data, identify suspicious patterns, and provide insights
+    about domain ownership and registration history.
+
+system_prompt: |
+  You are a domain intelligence analyst specializing in WHOIS data analysis.
+  Your task is to gather and analyze domain registration information to identify
+  potential security risks and suspicious patterns.
+  Focus on:
+  1. Domain registration details
+  2. Registrar information
+  3. Nameserver configurations
+  4. Registration date patterns
+  5. Contact information anomalies
+
+tools:
+  - name: "whois_lookup"
+    type: "python"
+    description: "Perform WHOIS lookup for a given domain"
+    parameters:
+      domain: "string"
+      timeout: 30
+
+  - name: "dns_lookup"
+    type: "python"
+    description: "Perform DNS record lookup"
+    parameters:
+      domain: "string"
+      record_type: "string"
+
+  - name: "domain_analyzer"
+    type: "python"
+    description: "Analyze domain patterns and anomalies"
+    parameters:
+      whois_data: "object"
+      dns_data: "object"
+
+external_knowledge:
+  - name: "ICANN WHOIS Protocol"
+    type: "documentation"
+    description: "Official documentation for WHOIS protocol specifications"
+
+  - name: "Domain Registration Patterns"
+    type: "model"
+    description: "Pattern recognition model for suspicious domain registrations"
+
+inputs:
+  - name: "domain"
+    type: "string"
+    description: "Domain name to analyze"
+    required: true
+
+  - name: "analysis_depth"
+    type: "string"
+    description: "Level of analysis to perform (basic, detailed, comprehensive)"
+    required: false
+
+outputs:
+  - name: "whois_data"
+    type: "object"
+    description: "Raw WHOIS registration data"
+
+  - name: "analysis_report"
+    type: "object"
+    description: "Analysis of domain registration patterns and risks"
+
+  - name: "risk_score"
+    type: "number"
+    description: "Numerical risk score based on analysis"
+
+steps:
+  - name: "gather_whois_data"
+    description: "Collect WHOIS registration information for the domain"
+    tools: ["whois_lookup"]
+    expected_output: "Complete WHOIS record for the domain"
+
+  - name: "analyze_registration"
+    description: "Analyze domain registration patterns and anomalies"
+    tools: ["domain_analyzer"]
+    conditions: ["whois_data exists"]
+    expected_output: "Analysis of registration patterns and potential risks"
+
+  - name: "generate_report"
+    description: "Generate comprehensive analysis report"
+    tools: []
+    conditions: ["analysis completed"]
+    expected_output: "Detailed report with findings and recommendations"
+
+crew_config:
+  name: "domain_intelligence_crew"
+  description: "Crew responsible for domain intelligence and analysis"
+  agents: ["domain_whois_agent", "dns_analyzer_agent", "threat_intel_agent"]
+  process: "sequential"
+  verbose: true
+  memory: true 

@@ -40,14 +40,23 @@ opentelemetry-exporter-otlp = "^1.22.0"
 opentelemetry-instrumentation-logging = "^0.43b0"
 opentelemetry-instrumentation-requests = "^0.43b0"
 opentelemetry-instrumentation-asyncpg = "^0.43b0"
+pytest-picked = {version = "^0.4.6", optional = true}
+
+[tool.poetry.extras]
+test = ["pytest-picked"]
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
+testpaths = [
+    "tests",
+    "agents"
+]
 filterwarnings = [
     "ignore::DeprecationWarning:pydantic.*:",
     "ignore::UserWarning:pydantic.*:",
-    "ignore::DeprecationWarning:pkg_resources.*:"
+    "ignore::DeprecationWarning:pkg_resources.*:",
+    "ignore:open_text is deprecated. Use files():DeprecationWarning:litellm.*"
 ]

@@ -1,0 +1,26 @@
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "Naor.Penso"
+    assignees:
+      - "Naor.Penso"
+    labels:
+      - "dependencies"
+      - "security"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    ignore:
+      - dependency-name: "python-whois"
+        versions: ["0.8.0"]
+      - dependency-name: "dnspython"
+        versions: ["2.4.2"]
+      - dependency-name: "requests"
+        versions: ["2.31.0"]
+      - dependency-name: "vt-py"
+        versions: ["0.18.0"] 

@@ -153,3 +153,114 @@ See [CONTRIBUTING.md](.github/CONTRIBUTING.md) for guidelines on:
 ## 📖 License
 
 This project is licensed under the MIT License. See `LICENSE` for details.
+
+# Domain Intelligence Crew
+
+A powerful domain intelligence analysis system that combines WHOIS, DNS, and threat intelligence analysis.
+
+## Features
+
+- WHOIS data analysis
+- DNS configuration analysis
+- Threat intelligence correlation
+- OpenTelemetry integration for observability
+- Comprehensive security testing
+- Concurrent domain analysis
+
+## Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/your-org/domain-intelligence-crew.git
+cd domain-intelligence-crew
+```
+
+2. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+3. Configure environment variables:
+```bash
+cp .env.example .env
+# Edit .env with your configuration
+```
+
+## Usage
+
+### Basic Usage
+
+```python
+from main import DomainIntelligenceCrew
+
+async def analyze_domain():
+    crew = DomainIntelligenceCrew()
+    results = await crew.analyze_domain("example.com")
+    print(results)
+
+# Run the analysis
+import asyncio
+asyncio.run(analyze_domain())
+```
+
+### Configuration
+
+The crew supports the following environment variables:
+
+- `OTEL_EXPORTER_OTLP_ENDPOINT`: OpenTelemetry endpoint for remote telemetry
+- `WHOIS_API_KEY`: API key for WHOIS service
+- `VIRUSTOTAL_API_KEY`: API key for VirusTotal
+- `DNS_SERVERS`: Comma-separated list of DNS servers
+
+### Observability
+
+The crew includes comprehensive observability through OpenTelemetry:
+
+- Traces for operation flow
+- Metrics for performance monitoring
+- Logs for debugging
+- Local console output and remote export support
+
+### Security Features
+
+- Input validation and sanitization
+- Rate limiting
+- Memory protection
+- Protection against common attacks:
+  - Buffer overflow
+  - SQL injection
+  - Command injection
+  - XSS
+  - Path traversal
+  - Unicode attacks
+  - DoS attempts
+
+## Testing
+
+Run the test suite:
+
+```bash
+pytest tests/
+```
+
+Run security tests:
+
+```bash
+pytest tests/test_security.py
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
+## Security
+
+Please report security vulnerabilities to security@cyberagents.com.
+
+## License
+
+MIT License

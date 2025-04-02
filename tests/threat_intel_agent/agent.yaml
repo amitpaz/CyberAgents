@@ -1,0 +1,118 @@
+---
+agent:
+  name: "threat_intel_agent"
+  uuid: "123e4567-e89b-12d3-a456-426614174002"
+  role: "Threat Intelligence Analyst"
+  goal: "Analyze domains against threat intelligence feeds and identify potential security threats"
+  backstory: >-
+    A specialized agent with expertise in threat intelligence and security analysis.
+    Skilled in correlating data from multiple threat intelligence sources and
+    identifying emerging threats and attack patterns.
+  responsibilities: >-
+    Analyze domains against threat intelligence feeds, correlate data from multiple
+    sources, and provide comprehensive threat assessments.
+
+system_prompt: |
+  You are a threat intelligence analyst specializing in domain threat analysis.
+  Your task is to analyze domains against multiple threat intelligence sources
+  and identify potential security threats.
+  Focus on:
+  1. VirusTotal reputation
+  2. Historical threat data
+  3. Known bad actor associations
+  4. Suspicious patterns
+  5. Emerging threats
+
+tools:
+  - name: "threat_intel_analyzer"
+    type: "python"
+    description: "Analyze domain against threat intelligence feeds"
+    parameters:
+      domain: "string"
+      whois_data: "object"
+      api_keys: "object"
+
+  - name: "threat_correlator"
+    type: "python"
+    description: "Correlate threat data from multiple sources"
+    parameters:
+      threat_data: "object"
+      historical_data: "object"
+
+  - name: "risk_assessor"
+    type: "python"
+    description: "Assess overall risk based on threat intelligence"
+    parameters:
+      threat_data: "object"
+      dns_data: "object"
+      whois_data: "object"
+
+external_knowledge:
+  - name: "Threat Intelligence Feeds"
+    type: "api"
+    description: "Access to multiple threat intelligence feeds"
+
+  - name: "Threat Pattern Database"
+    type: "database"
+    description: "Database of known threat patterns and indicators"
+
+inputs:
+  - name: "domain"
+    type: "string"
+    description: "Domain name to analyze"
+    required: true
+
+  - name: "whois_data"
+    type: "object"
+    description: "WHOIS data for the domain"
+    required: true
+
+  - name: "dns_data"
+    type: "object"
+    description: "DNS data for the domain"
+    required: true
+
+outputs:
+  - name: "threat_data"
+    type: "object"
+    description: "Raw threat intelligence data"
+
+  - name: "correlation_report"
+    type: "object"
+    description: "Correlated threat intelligence analysis"
+
+  - name: "risk_assessment"
+    type: "object"
+    description: "Comprehensive risk assessment"
+
+steps:
+  - name: "gather_threat_data"
+    description: "Collect threat intelligence data"
+    tools: ["threat_intel_analyzer"]
+    expected_output: "Complete threat intelligence data"
+
+  - name: "correlate_threats"
+    description: "Correlate data from multiple sources"
+    tools: ["threat_correlator"]
+    conditions: ["threat_data exists"]
+    expected_output: "Correlated threat intelligence analysis"
+
+  - name: "assess_risk"
+    description: "Perform comprehensive risk assessment"
+    tools: ["risk_assessor"]
+    conditions: ["correlation_report exists"]
+    expected_output: "Detailed risk assessment"
+
+  - name: "generate_report"
+    description: "Generate threat intelligence report"
+    tools: []
+    conditions: ["analysis completed"]
+    expected_output: "Comprehensive threat intelligence report"
+
+crew_config:
+  name: "domain_intelligence_crew"
+  description: "Crew responsible for domain intelligence and analysis"
+  agents: ["domain_whois_agent", "dns_analyzer_agent", "threat_intel_agent"]
+  process: "sequential"
+  verbose: true
+  memory: true 
