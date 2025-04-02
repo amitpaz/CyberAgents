@@ -1,14 +1,15 @@
----
+______________________________________________________________________
+
 name: Feature Request
 about: Suggest an idea or enhancement
-title: "[FEATURE]"
+title: "\[FEATURE\]"
 labels: enhancement
 assignees: ""
 
----
+______________________________________________________________________
 
 **Is your feature request related to a problem? Please describe.**
-A clear and concise description of what the problem is (e.g., \"I’m always frustrated when...\").
+A clear and concise description of what the problem is (e.g., "I’m always frustrated when...").
 
 **Describe the solution you'd like**
 A clear and concise description of what you want to happen.

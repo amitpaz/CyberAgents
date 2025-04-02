@@ -1,50 +1,21 @@
+---
+# TEMPORARY PLACEHOLDER — TO BE REPLACED
+#
+# This is a temporary YAML structure for response_agent.
+# Replace with full agent definition including metadata, responsibilities, tools, steps, inputs,
+# and outputs.
+
 agent:
-  name: "AgentNamePlaceholder"
+  name: "response_agent"
   uuid: "00000000-0000-0000-0000-000000000000"
-  responsibilities: "Describe the agent's core cybersecurity responsibilities here."
+  responsibilities: >-
+    TODO: Define responsibilities for response_agent.
 
 system_prompt: |
-  You are an AI assistant specialized in cybersecurity. 
-  Base guidance or persona details go here.
+  TODO: Provide a system prompt for this agent.
 
-tools:
-  - name: "ToolPlaceholder"
-    type: external
-    description: "Example tool or API usage."
-
-external_knowledge:
-  - type: file
-    path: "knowledge/placeholder_guide.md"
-    description: "Short description of what knowledge is stored here."
-  - type: link
-    url: "https://example.com"
-    description: "Additional reference link."
-
-inputs:
-  - name: "input_placeholder"
-    type: "string"
-    description: "Example input description."
-
-outputs:
-  - name: "output_placeholder"
-    type: "string"
-    description: "Example output description."
-
-steps:
-  - id: 1
-    description: "Initial step description."
-    action: "Describe the operation or command."
-    next: 2
-
-  - id: 2
-    description: "Second step."
-    action: "Potentially use a tool or run a query."
-    # Example conditional branching:
-    condition: "input_placeholder == 'run_extra_step'"
-    true_next: 3
-    false_next: null
-
-  - id: 3
-    description: "Extra step if condition is met."
-    action: "Perform additional tasks."
-    next: null
+tools: []
+external_knowledge: []
+inputs: []
+outputs: []
+steps: []

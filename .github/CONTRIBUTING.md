@@ -6,9 +6,9 @@ feedback, bug reports, and pull requests. Below are guidelines to help you get s
 ## How to Contribute
 
 1. **Fork** the repository and clone your fork locally.
-2. Create a new branch from `main` (e.g., `feat/new-agent`, `fix/typo`, etc.).
-3. Make your changes or additions. Commit using [semantic commit messages](https://www.conventionalcommits.org/).
-4. Push your branch to your fork and open a **Pull Request** against the `main` branch of this repo.
+1. Create a new branch from `main` (e.g., `feat/new-agent`, `fix/typo`, etc.).
+1. Make your changes or additions. Commit using [semantic commit messages](https://www.conventionalcommits.org/).
+1. Push your branch to your fork and open a **Pull Request** against the `main` branch of this repo.
 
 ## Commit Message Guidelines
 

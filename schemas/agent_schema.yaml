@@ -1,0 +1,134 @@
+---
+$schema: http://json-schema.org/draft-07/schema#
+title: CyberAgents Agent Schema
+description: Schema for defining AI-powered cybersecurity agents
+type: object
+required:
+  - agent
+  - system_prompt
+  - tools
+  - external_knowledge
+  - inputs
+  - outputs
+  - steps
+
+properties:
+  agent:
+    type: object
+    required:
+      - name
+      - uuid
+      - responsibilities
+    properties:
+      name:
+        type: string
+        pattern: "^[a-z0-9_]+$"
+        description: "Unique identifier for the agent (lowercase, underscores)"
+      uuid:
+        type: string
+        pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        description: "UUID v4 for the agent"
+      responsibilities:
+        type: string
+        description: "Detailed description of agent responsibilities"
+
+  system_prompt:
+    type: string
+    description: "System prompt for LLM-backed agents"
+
+  tools:
+    type: array
+    description: "List of tools available to the agent"
+    items:
+      type: object
+      required:
+        - name
+        - description
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        parameters:
+          type: object
+          additionalProperties: true
+
+  external_knowledge:
+    type: array
+    description: "List of external knowledge sources used by the agent"
+    items:
+      type: object
+      required:
+        - name
+        - type
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [documentation, database, api, model]
+        description:
+          type: string
+
+  inputs:
+    type: array
+    description: "List of input parameters expected by the agent"
+    items:
+      type: object
+      required:
+        - name
+        - type
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [string, number, boolean, object, array]
+        description:
+          type: string
+        required:
+          type: boolean
+          default: true
+
+  outputs:
+    type: array
+    description: "List of outputs produced by the agent"
+    items:
+      type: object
+      required:
+        - name
+        - type
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [string, number, boolean, object, array]
+        description:
+          type: string
+
+  steps:
+    type: array
+    description: "Sequenced list of steps the agent follows"
+    items:
+      type: object
+      required:
+        - name
+        - description
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        tools:
+          type: array
+          items:
+            type: string
+        conditions:
+          type: array
+          items:
+            type: string
+        outputs:
+          type: array
+          items:
+            type: string
