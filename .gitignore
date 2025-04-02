@@ -145,7 +145,7 @@ Thumbs.db
 
 # Cursor rules (sometimes user-specific)
 # Can be committed if shared across team
-# .cursor-rules/
+.cursor-rules/
 
 # Temporary script
 run_analysis_script.py
