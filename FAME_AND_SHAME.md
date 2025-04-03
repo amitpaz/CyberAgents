@@ -10,6 +10,8 @@ These packages are preventing us from upgrading other dependencies. Shame!
 | `packaging` | `langchain-core` | Requires `packaging >=23.2,<24.0` | 🧐 |
 | `tenacity` | `langchain` | Requires `tenacity >=8.1.0,<9.0.0` | 🧐 |
 | `httpx` | `litellm` via `crewai` | Requires `httpx >=0.23.0,<0.28.0` | 🧐 |
+| `importlib-metadata` | `opentelemetry-api` | Requires `importlib-metadata >=6.0,<7.0` | 🧐 |
+| `pydantic-core` | `crewai` via `instructor` | Requires specific version chains through pydantic | 🧐🧐 |
 
 ## Dependency Upgrade Champions 🤩
 
@@ -17,6 +19,12 @@ These packages are well-maintained and allow us to use their latest versions wit
 
 | Package | Current Version | Status |
 |---------|----------------|--------|
+| `fastapi` | 0.115.12 | Successfully upgraded 🤩 |
+| `starlette` | 0.46.1 | Successfully upgraded 🤩 |
+| `uvicorn` | 0.34.0 | Successfully upgraded 🤩 |
+| `typer` | 0.15.2 | Successfully upgraded 🤩 |
+| `vt-py` | 0.20.0 | Successfully upgraded 🤩 |
+| `python-whois` | 0.9.5 | Successfully upgraded 🤩 |
 | `pytest-picked` | 0.5.1 | Successfully upgraded 🤩 |
 | `pytest-asyncio` | 0.26.0 | Successfully upgraded 🤩 |
 | `pytest` | 8.0.0 | Already using recent version 🤩 |
