@@ -60,23 +60,28 @@ This document (FAME_AND_SHAME.md) should be updated every time dependency upgrad
    - Specific version constraints causing the issue
    - Shame level (🧐 for minor annoyances, 🧐🧐 for significant blockers)
 
-1. **Successfully upgraded packages** - When a package is successfully upgraded, add or update it in the Champions section with:
+2. **Successfully upgraded packages** - When a package is successfully upgraded, add or update it in the Champions section with:
 
    - Package name
    - New version number
    - Status (either "Successfully upgraded 🤩" or "Already using recent version 🤩")
 
-1. **Packages that became unblocked** - If a package previously in the Blockers section is resolved (either by the blocking package relaxing its requirements or by upgrading the entire dependency chain), move it to the Champions section.
+3. **Packages that became unblocked** - If a package previously in the Blockers section is resolved (either by the blocking package relaxing its requirements or by upgrading the entire dependency chain), move it to the Champions section.
+
+4. **Template validation** - After making any changes, run the validation script to ensure the document follows the standardized format:
+   ```bash
+   python .github/scripts/validate_fame_shame.py
+   ```
 
 ### Template Validation Checklist
 
 Before committing changes to FAME_AND_SHAME.md, verify:
 
-- \[ \] All table headers match the template exactly
-- \[ \] Package names are enclosed in backticks
-- \[ \] Version numbers follow semantic versioning format
-- \[ \] Status entries end with appropriate emoji
-- \[ \] Shame levels use only the defined emoji set (🧐 or 🧐🧐)
-- \[ \] Numbered list in maintenance guide uses correct sequential numbering
+- [ ] All table headers match the template exactly
+- [ ] Package names are enclosed in backticks
+- [ ] Version numbers follow semantic versioning format
+- [ ] Status entries end with appropriate emoji
+- [ ] Shame levels use only the defined emoji set (🧐 or 🧐🧐)
+- [ ] Numbered list in maintenance guide uses correct sequential numbering
 
 This document serves as both documentation and motivation to keep dependencies up to date.
