@@ -1,73 +1,71 @@
+# Include external rule packs for comprehensive scanning
+rule_packs:
+  - p/python
+  - p/owasp-top-ten
+  - p/security-audit
+  - r/bash
+
+# Additional custom rules
 rules:
-  - id: python-security-rules
-    pattern: |
-      rules:
-        - id: python.cryptography.security.audit.weak-cryptographic-algorithm.weak-cryptographic-algorithm
-          pattern: |
-            hashlib.$ALGORITHM($DATA)
-          message: "Use strong cryptographic algorithms (SHA-256 or better)"
-          severity: ERROR
-          languages: [python]
-          paths:
-            include:
-              - "**/*.py"
-            exclude:
-              - "**/tests/**"
-              - "**/docs/**"
-              - "**/examples/**"
+  # Python security-specific rules
+  - id: custom.python.crypto.weak-algorithm
+    pattern-either:
+      - pattern: hashlib.md5(...)
+      - pattern: hashlib.sha1(...)
+    message: "Use strong cryptographic algorithms (SHA-256 or better)"
+    severity: ERROR
+    languages: [python]
+    paths:
+      include:
+        - "**/*.py"
+      exclude:
+        - "**/tests/**"
+        - "**/docs/**"
 
-        - id: python.security.audit.eval-use.eval-use
-          pattern: |
-            eval($EXPR)
-          message: "Avoid using eval() as it can lead to code injection"
-          severity: ERROR
-          languages: [python]
-          paths:
-            include:
-              - "**/*.py"
-            exclude:
-              - "**/tests/**"
-              - "**/docs/**"
-              - "**/examples/**"
+  - id: python.security.eval-use
+    pattern: eval(...)
+    message: "Avoid using eval() as it can lead to code injection"
+    severity: ERROR
+    languages: [python]
+    paths:
+      include:
+        - "**/*.py"
+      exclude:
+        - "**/tests/**"
+        - "**/docs/**"
 
-        - id: python.security.audit.pickle-use.pickle-use
-          pattern: |
-            pickle.loads($DATA)
-          message: "Avoid using pickle for deserialization as it can lead to code execution"
-          severity: ERROR
-          languages: [python]
-          paths:
-            include:
-              - "**/*.py"
-            exclude:
-              - "**/tests/**"
-              - "**/docs/**"
-              - "**/examples/**"
+  - id: python.security.pickle-use
+    pattern: pickle.loads(...)
+    message: "Avoid using pickle for deserialization as it can lead to code execution"
+    severity: ERROR
+    languages: [python]
+    paths:
+      include:
+        - "**/*.py"
+      exclude:
+        - "**/tests/**"
+        - "**/docs/**"
 
-        - id: python.security.audit.subprocess-shell-true.subprocess-shell-true
-          pattern: |
-            subprocess.run($CMD, shell=True)
-          message: "Avoid using shell=True in subprocess calls as it can lead to shell injection"
-          severity: ERROR
-          languages: [python]
-          paths:
-            include:
-              - "**/*.py"
-            exclude:
-              - "**/tests/**"
-              - "**/docs/**"
-              - "**/examples/**"
+  - id: python.security.subprocess-shell-true
+    pattern: subprocess.run(..., shell=True, ...)
+    message: "Avoid using shell=True in subprocess calls as it can lead to shell injection"
+    severity: ERROR
+    languages: [python]
+    paths:
+      include:
+        - "**/*.py"
+      exclude:
+        - "**/tests/**"
+        - "**/docs/**"
 
-        - id: python.security.audit.weak-random.weak-random
-          pattern: |
-            random.$FUNC()
-          message: "Use secrets module for cryptographic operations instead of random"
-          severity: ERROR
-          languages: [python]
-          paths:
-            include:
-              - "**/*.py"
-            exclude:
-              - "**/tests/**"
-              - "**/docs/**"
-              - "**/examples/**" 
+  - id: python.security.weak-random
+    pattern: random.$FUNC(...)
+    message: "Use secrets module for cryptographic operations instead of random"
+    severity: ERROR
+    languages: [python]
+    paths:
+      include:
+        - "**/*.py"
+      exclude:
+        - "**/tests/**"
+        - "**/docs/**" 
