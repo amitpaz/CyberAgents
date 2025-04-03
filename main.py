@@ -187,7 +187,7 @@ class DomainIntelligenceCrew:
         # Instantiate agents
         self.agents_instances = {}
         self.crew_agents = []
-        self.manager_agent_instance = None
+        self.manager_agent = None
 
         for name, AgentClass in self.agent_classes.items():
             try:
@@ -197,7 +197,7 @@ class DomainIntelligenceCrew:
                 if hasattr(instance, "agent") and isinstance(instance.agent, Agent):
                     self.crew_agents.append(instance.agent)
                     if name == "SecurityManagerAgent":  # Identify the manager
-                        self.manager_agent_instance = instance
+                        self.manager_agent = instance
                 else:
                     logger.error(
                         f"Agent class {name} does not have a valid 'agent' attribute of type crewai.Agent."
@@ -210,7 +210,7 @@ class DomainIntelligenceCrew:
             raise RuntimeError(
                 "No valid crewai.Agent instances were created. Cannot initialize crew."
             )
-        if not self.manager_agent_instance:
+        if not self.manager_agent:
             raise RuntimeError(
                 "SecurityManagerAgent instance not found or failed to load. Cannot initialize crew."
             )
@@ -221,7 +221,7 @@ class DomainIntelligenceCrew:
             tasks=[],
             verbose=self.verbose_mode,
             memory=True,
-            # manager_llm=self.manager_agent_instance.agent.llm # Example: Ensure manager uses its own LLM if needed
+            # manager_llm=self.manager_agent.agent.llm # Example: Ensure manager uses its own LLM if needed
         )
 
     def run_analysis(self, user_prompt: str, output_format: str = "rich") -> Dict:
@@ -262,7 +262,7 @@ class DomainIntelligenceCrew:
             try:
                 manager_task = Task(
                     description=manager_task_description,
-                    agent=self.manager_agent_instance.agent,
+                    agent=self.manager_agent.agent,
                     expected_output=manager_expected_output,
                 )
 

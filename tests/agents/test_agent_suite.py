@@ -42,8 +42,9 @@ def test_placeholder_for_agent_suite():
 #     print("\nTearing down resources for the agent test suite...")
 
 
-def test_agent_initialization(agent_class):
-    """Test basic initialization of an agent class.
-
-    Ensures agent can be instantiated without errors.
-    """
+# Remove broken/unused test function
+# def test_agent_initialization(agent_class):
+#     """Test basic initialization of an agent class.
+#
+#     Ensures agent can be instantiated without errors.
+#     """

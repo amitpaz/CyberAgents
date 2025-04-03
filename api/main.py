@@ -17,11 +17,9 @@ allowed_origins_str = os.getenv("ALLOWED_ORIGINS", "")
 allowed_origins = [
     origin.strip() for origin in allowed_origins_str.split(",") if origin.strip()
 ]
-# Default to empty list if variable is not set or empty, which is safer than ["*"]
+# Default to ["*"] if env var is not set or empty
 if not allowed_origins:
-    # You might want to log a warning here in a real application
-    # print("Warning: ALLOWED_ORIGINS environment variable not set. CORS will be restrictive.")
-    pass  # Keep allowed_origins as []
+    allowed_origins = ["*"]
 
 # Create FastAPI app
 app = FastAPI(

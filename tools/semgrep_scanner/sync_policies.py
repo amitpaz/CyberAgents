@@ -4,9 +4,8 @@
 import argparse
 import logging
 import subprocess
-import sys
 from pathlib import Path
-from typing import List, Optional, Tuple, Union, Any
+from typing import List, Optional, Tuple, Union
 
 import yaml
 
@@ -54,55 +53,19 @@ def parse_arguments() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def handle_sync(languages: Optional[List[str]] = None) -> None:
-    """
-    Handle the sync command.
-
-    Args:
-        languages: List of languages to sync policies for
-    """
-    if not languages:
-        logger.info("Syncing policies for all supported languages...")
-        result = sync_all_policies()
-    else:
-        logger.info(f"Syncing policies for: {', '.join(languages)}")
-        result = sync_language_policies(languages)
-
-    if result.get("success", False):
-        logger.info(f"Successfully synchronized {result['total_policies']} policies")
-
-        # Print details for each language
-        for lang, count in result.get("languages", {}).items():
-            logger.info(f"  {lang}: {count} policies")
-    else:
-        logger.error(
-            f"Synchronization failed: {result.get('message', 'Unknown error')}"
-        )
-
-
-def handle_status() -> None:
-    """Handle the status command."""
-    status = get_sync_status()
-
-    logger.info(f"Current Semgrep Policy Sync Status:")
-    logger.info(f"Last sync: {status['last_sync'] or 'Never'}")
-    logger.info(f"Commit hash: {status['commit_hash'] or 'N/A'}")
-    logger.info(f"Total policies: {status['total_policies']}")
-
-    logger.info("Language policy counts:")
-    for lang, info in status.get("languages", {}).items():
-        last_updated = info.get("last_updated", "Unknown")
-        count = info.get("count", 0)
-        logger.info(f"  {lang}: {count} policies (Last updated: {last_updated})")
-
-
 def main() -> None:
     """Execute the main policy synchronization logic."""
     args = parse_arguments()
+    # Assuming args provides config_path, rules_dir, force_update directly
+    # If not, parse_arguments needs adjustment or defaults used here
+    config_path_arg = getattr(args, 'config', "semgrep-config.yml")
+    rules_dir_arg = getattr(args, 'rules_dir', DEFAULT_SEMGREP_RULES_DIR)
+    force_update_arg = getattr(args, 'force', False)
+
     sync_policies(
-        config_path=args.config,
-        rules_dir=args.rules_dir,
-        force_update=args.force,
+        config_path=config_path_arg,
+        rules_dir=rules_dir_arg,
+        force_update=force_update_arg,
     )
 
 

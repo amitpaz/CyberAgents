@@ -21,7 +21,7 @@ import yaml
 from crewai import Agent
 
 from agents.base_agent import BaseAgent
-from utils.rate_limiter import RateLimiter, RateLimitExceededError
+from utils.rate_limiter import RateLimiter
 
 logger = logging.getLogger(__name__)
 
@@ -136,9 +136,9 @@ class CodeLanguageDetector:
 class SemgrepRunner:
     """Handles running Semgrep scans on code."""
 
-    def __init__(self, rules: List[str], max_scan_time: int = 300):
+    def __init__(self, rules: List[str] = [], max_scan_time: int = 300):
         """
-        Initialize the Semgrep runner.
+        Initialize the Semgrep runner. Finds the semgrep executable path.
 
         Args:
             rules: List of Semgrep rule sets to use
@@ -146,6 +146,11 @@ class SemgrepRunner:
         """
         self.rules = rules
         self.max_scan_time = max_scan_time
+        # Find the semgrep executable
+        self.semgrep_executable = shutil.which("semgrep")
+        if not self.semgrep_executable:
+            logger.warning("Semgrep executable not found in PATH. Scans will fail.")
+            # Or raise an error: raise FileNotFoundError("Semgrep executable not found")
 
     def _prepare_rules_arg(self) -> str:
         """Prepare the rules argument for Semgrep command."""
@@ -162,13 +167,20 @@ class SemgrepRunner:
         Returns:
             Dictionary with scan results
         """
-        # Prepare command
+        if not self.semgrep_executable:
+            return {"error": "Semgrep executable not found.", "findings": []}
+
+        # Prepare command using the found executable path
         cmd = [
-            "semgrep",
+            self.semgrep_executable,
             "--json",
             "-q",  # Quiet mode
-            f"--config={self._prepare_rules_arg()}",
         ]
+        # Add config explicitly: use rules if provided, otherwise use "auto"
+        if self.rules:
+            cmd.append(f"--config={self._prepare_rules_arg()}")
+        else:
+            cmd.append("--config=auto") # Use auto configuration if no rules specified
 
         # Add language if specified
         if language and language != "unknown":
@@ -176,6 +188,9 @@ class SemgrepRunner:
 
         # Add path to scan
         cmd.append(code_path)
+
+        # Log the exact command being run
+        logger.info(f"Executing Semgrep command: {cmd}")
 
         try:
             # Run with timeout
@@ -307,7 +322,7 @@ class AppSecEngineerAgent(BaseAgent):
         # Check rate limit
         try:
             await self.rate_limiter.acquire()
-        except RateLimitExceededError as e:
+        except Exception as e:
             logger.warning(f"Rate limit hit for code analysis: {e}")
             return {"error": str(e)}
 
@@ -397,7 +412,7 @@ class AppSecEngineerAgent(BaseAgent):
         # Check rate limit
         try:
             await self.rate_limiter.acquire()
-        except RateLimitExceededError as e:
+        except Exception as e:
             logger.warning(f"Rate limit hit for repository analysis: {e}")
             return {"error": str(e)}
 
@@ -422,8 +437,9 @@ class AppSecEngineerAgent(BaseAgent):
                     "error": f"Repository exceeds maximum size of {self.config['max_code_size']} KB"
                 }
 
-            # Run Semgrep scan
+            # Run Semgrep scan using its default config ('auto' if rules are empty)
             start_time = time.time()
+            # Don't pass specific rules, let scan_code use its default (--config=auto)
             results = self.semgrep.scan_code(temp_dir)
             scan_time = time.time() - start_time
 

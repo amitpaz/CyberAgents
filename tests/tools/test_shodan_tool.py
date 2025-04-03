@@ -54,11 +54,6 @@ MOCK_HOST_RESPONSE = {
 MOCK_SEARCH_RESPONSE = {"matches": [MOCK_HOST_RESPONSE], "total": 1}
 
 
-def mock_host_result():
-    """Return a realistic mock Shodan host result."""
-    # ... (rest of function)
-
-
 def mock_shodan_api_error():
     """Simulate a Shodan APIError."""
     raise shodan.APIError("Invalid API key")
