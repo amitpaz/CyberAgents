@@ -9,31 +9,7 @@ implementation:
   language: "python"
   dependencies:
     - "dnspython>=2.4.2"
-  code: |
-    import dns.resolver
-    from typing import Dict, Any, List, Optional
-
-    def lookup(domain: str, record_type: str = "A") -> Dict[str, Any]:
-        """
-        Perform DNS lookup for a domain.
-        
-        Args:
-            domain: Domain name to look up
-            record_type: Type of DNS record to query (A, AAAA, MX, TXT, etc.)
-            
-        Returns:
-            Dictionary containing DNS information
-        """
-        try:
-            resolver = dns.resolver.Resolver()
-            answers = resolver.resolve(domain, record_type)
-            return {
-                "domain": domain,
-                "record_type": record_type,
-                "records": [str(rdata) for rdata in answers]
-            }
-        except Exception as e:
-            return {"error": str(e)}
+  code: dns_tool.py
 
 parameters:
   - name: "domain"
@@ -64,4 +40,4 @@ examples:
     output:
       domain: "example.com"
       record_type: "MX"
-      records: ["0 ."] 
+      records: ["0 ."]

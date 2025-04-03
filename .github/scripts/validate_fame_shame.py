@@ -74,7 +74,9 @@ def validate_fame_shame_document():
             errors.append(f"Invalid shame level format: {level}")
 
     # Check status entries (basic validation)
-    status_pattern = r"\|\s*(Successfully upgraded 🤩|Already using recent version 🤩)\s*\|"
+    status_pattern = (
+        r"\|\s*(Successfully upgraded 🤩|Already using recent version 🤩)\s*\|"
+    )
     status_entries = re.findall(status_pattern, content)
     if not status_entries:
         errors.append("No valid status entries found in champion table")

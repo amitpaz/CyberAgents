@@ -1,7 +1,7 @@
 """Test suite for the main FastAPI application."""
 
-from fastapi.testclient import TestClient
 import pytest
+from fastapi.testclient import TestClient
 from httpx import AsyncClient
 
 from api.main import app
@@ -9,7 +9,9 @@ from api.main import app
 client = TestClient(app)
 
 
-@pytest.mark.skip(reason="API tests require review/update after agent refactoring and potential API changes")
+@pytest.mark.skip(
+    reason="API tests require review/update after agent refactoring and potential API changes"
+)
 def test_root_endpoint():
     """Test the root endpoint returns a welcome message (NEEDS REVIEW)."""
     # This test failed due to message mismatch
@@ -28,7 +30,9 @@ def test_api_docs_available():
     assert response.status_code == 200
 
 
-@pytest.mark.skip(reason="API tests require review/update after agent refactoring and potential API changes")
+@pytest.mark.skip(
+    reason="API tests require review/update after agent refactoring and potential API changes"
+)
 def test_cors_headers():
     """Test that CORS headers are properly set (NEEDS REVIEW)."""
     # This test failed due to missing header

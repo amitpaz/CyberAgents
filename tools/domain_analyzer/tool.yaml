@@ -19,11 +19,11 @@ implementation:
     def analyze(whois_data: Dict[str, Any], dns_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Analyze domain patterns and anomalies.
-        
+
         Args:
             whois_data: WHOIS lookup results
             dns_data: DNS lookup results
-            
+
         Returns:
             Dictionary containing analysis results
         """
@@ -98,4 +98,4 @@ examples:
       patterns:
         - "Multi-level subdomain structure"
       recommendations:
-        - "Consider additional verification steps" 
+        - "Consider additional verification steps"

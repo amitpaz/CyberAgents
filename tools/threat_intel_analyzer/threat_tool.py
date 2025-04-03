@@ -1,23 +1,34 @@
 """Threat intelligence tool for domain analysis."""
+
+import asyncio
+import os
+from typing import Any, ClassVar, Dict, List, Optional
+
 import vt
 from crewai.tools import BaseTool
-from pydantic import BaseModel, Field, ConfigDict
-import os
-from typing import Optional, Dict, Any, List, ClassVar
-import asyncio
+from pydantic import BaseModel, ConfigDict, Field
+
 from utils.rate_limiter import RateLimiter
+
 
 class ThreatInput(BaseModel):
     """Input for threat intelligence lookup."""
+
     domain: str = Field(..., description="Domain name to analyze")
-    whois_data: Optional[Dict[str, Any]] = Field(default=None, description="WHOIS data for correlation")
+    whois_data: Optional[Dict[str, Any]] = Field(
+        default=None, description="WHOIS data for correlation"
+    )
+
 
 class ThreatTool(BaseTool):
     """Tool for performing threat intelligence analysis."""
+
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    
+
     name: ClassVar[str] = "threat_intelligence"
-    description: str = "Analyze domain for security threats using VirusTotal and other sources"
+    description: str = (
+        "Analyze domain for security threats using VirusTotal and other sources"
+    )
     input_schema: ClassVar[type] = ThreatInput
     vt_client: Optional[vt.Client] = None
     rate_limiter: Optional[RateLimiter] = None
@@ -36,25 +47,29 @@ class ThreatTool(BaseTool):
         try:
             # Apply rate limiting
             await self.rate_limiter.acquire()
-            
+
             domain_obj = await self.vt_client.get_object_async(f"/domains/{domain}")
             return {
                 "reputation": domain_obj.reputation,
                 "last_analysis_stats": domain_obj.last_analysis_stats,
                 "total_votes": domain_obj.total_votes,
-                "last_analysis_date": str(domain_obj.last_analysis_date)
+                "last_analysis_date": str(domain_obj.last_analysis_date),
             }
         except Exception as e:
             return {"error": str(e)}
 
-    def _analyze_whois_indicators(self, whois_data: Optional[Dict[str, Any]]) -> List[str]:
+    def _analyze_whois_indicators(
+        self, whois_data: Optional[Dict[str, Any]]
+    ) -> List[str]:
         """Analyze WHOIS data for suspicious indicators."""
         indicators = []
-        
+
         if whois_data:
             # Check for privacy protection
-            if any(word in str(whois_data.get("registrar", "")).lower() 
-                  for word in ["privacy", "proxy", "private", "redacted"]):
+            if any(
+                word in str(whois_data.get("registrar", "")).lower()
+                for word in ["privacy", "proxy", "private", "redacted"]
+            ):
                 indicators.append("Privacy protection service used")
 
             # Check for recent registration
@@ -64,7 +79,9 @@ class ThreatTool(BaseTool):
 
         return indicators
 
-    def _run(self, domain: str, whois_data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def _run(
+        self, domain: str, whois_data: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """Run threat analysis for a domain."""
         try:
             # For synchronous operation, we'll use a simple error response
@@ -74,12 +91,14 @@ class ThreatTool(BaseTool):
                 "virustotal_data": {},
                 "indicators": [],
                 "sources": [],
-                "recommendations": ["Use async interface for threat analysis"]
+                "recommendations": ["Use async interface for threat analysis"],
             }
         except Exception as e:
             return {"error": str(e)}
 
-    async def _arun(self, domain: str, whois_data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def _arun(
+        self, domain: str, whois_data: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """Run threat analysis asynchronously."""
         try:
             vt_results = await self._analyze_virustotal(domain)
@@ -95,8 +114,12 @@ class ThreatTool(BaseTool):
                 "indicators": whois_indicators,
                 "sources": ["VirusTotal", "WHOIS Analysis"],
                 "recommendations": [
-                    "Monitor domain for suspicious activity" if threat_score > 0.3 else "No immediate action needed"
-                ]
+                    (
+                        "Monitor domain for suspicious activity"
+                        if threat_score > 0.3
+                        else "No immediate action needed"
+                    )
+                ],
             }
         except Exception as e:
-            return {"error": str(e)} 
+            return {"error": str(e)}

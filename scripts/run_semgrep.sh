@@ -1,6 +1,6 @@
 #!/bin/bash
 # Script to run Semgrep security scans locally
-# Usage: 
+# Usage:
 #   ./scripts/run_semgrep.sh [options] [directory]
 #
 # Options:
@@ -109,4 +109,4 @@ case "$SCAN_TYPE" in
         ;;
 esac
 
-echo "Semgrep scan complete." 
+echo "Semgrep scan complete."

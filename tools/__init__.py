@@ -1,13 +1,14 @@
-# This file makes the 'tools' directory a Python package. 
+# This file makes the 'tools' directory a Python package.
 
-from .whois_tool import WhoisTool
-from .dns_tool import DNSTool
-from .threat_tool import ThreatTool
-from .email_validation_tool import EmailValidationTool
-from .subdomain_finder_tool import SubdomainFinderTool
-from .shodan_tool import ShodanHostSearchTool
-from .asn_ip_lookup_tool import ASNIPLookupTool
-from .nmap_port_scan_tool import NmapPortScanTool
+# Import tools from their respective subdirectories
+from .asn_ip_lookup_tool.asn_ip_lookup_tool import ASNIPLookupTool
+from .dns_lookup.dns_tool import DNSTool
+from .email_validation.email_validation_tool import EmailValidationTool
+from .nmap_port_scan_tool.nmap_port_scan_tool import NmapPortScanTool
+from .shodan_search.shodan_tool import ShodanHostSearchTool
+from .subdomain_finder.subdomain_finder_tool import SubdomainFinderTool
+from .threat_intel_analyzer.threat_tool import ThreatTool
+from .whois_lookup.whois_tool import WhoisTool
 
 __all__ = [
     "WhoisTool",
@@ -18,4 +19,4 @@ __all__ = [
     "ShodanHostSearchTool",
     "ASNIPLookupTool",
     "NmapPortScanTool",
-] 
+]

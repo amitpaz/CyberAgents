@@ -1,9 +1,11 @@
 """Agent responsible for WHOIS analysis."""
 
 from crewai import Agent
-from tools.whois_tool import WhoisTool
-from utils.llm_utils import create_llm
+
 from agents.base_agent import BaseAgent
+from tools import WhoisTool
+from utils.llm_utils import create_llm
+
 
 class DomainWhoisAgent(BaseAgent):
     """Creates and configures the WHOIS analysis agent.
@@ -11,7 +13,7 @@ class DomainWhoisAgent(BaseAgent):
     This agent specializes in retrieving and parsing WHOIS registration data
     for a given domain name.
     """
-    
+
     def __init__(self):
         """Initializes the agent with its configuration."""
         self.agent = Agent(
@@ -21,5 +23,5 @@ class DomainWhoisAgent(BaseAgent):
             tools=[WhoisTool()],
             llm=create_llm(),
             verbose=True,
-            allow_delegation=False # This agent performs a specific task
-        ) 
+            allow_delegation=False,  # This agent performs a specific task
+        )

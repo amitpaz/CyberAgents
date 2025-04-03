@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field, field_validator
 
 class AgentConfig(BaseModel):
     """Configuration for an agent."""
+
     name: str
     role: str
     goal: str

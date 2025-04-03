@@ -1,0 +1,44 @@
+tool:
+  name: email_security_validator
+  type: python
+  description: "Validates SPF and DMARC DNS records for a given domain and provides suggestions based on their presence and basic configuration."
+  version: "0.1.0"
+
+implementation:
+  language: python
+  dependencies:
+    - dnspython>=2.0.0 # Dependency for DNS lookups
+  code: email_validation_tool.py
+
+parameters:
+  - name: domain
+    type: string
+    description: "Domain name to validate SPF and DMARC records for (e.g., google.com)"
+    required: true
+
+examples:
+  - description: "Validate SPF and DMARC for google.com"
+    input:
+      domain: "google.com"
+    output: # Example structure, actual records will differ
+      spf:
+        record: "v=spf1 include:_spf.google.com ~all" # Example SPF
+        valid: true
+        suggestion: "SPF record found. Contains ~all (softfail). Consider if -all (fail) is appropriate."
+      dmarc:
+        record: "v=DMARC1; p=reject; rua=mailto:dmarc-reports@google.com; sp=reject" # Example DMARC
+        valid: true
+        suggestion: "DMARC record found with policy 'reject'. This enforces email authentication."
+
+  - description: "Validate SPF and DMARC for a domain with no records (example)"
+    input:
+      domain: "nonexistent-domain-example-123.com"
+    output: # Example structure for nonexistent domain
+      spf:
+        record: null
+        valid: false
+        suggestion: "Domain nonexistent-domain-example-123.com does not exist."
+      dmarc:
+        record: null
+        valid: false
+        suggestion: "Domain nonexistent-domain-example-123.com does not exist." # Or suggestion based on SPF check 

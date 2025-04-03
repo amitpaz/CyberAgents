@@ -23,4 +23,4 @@ updates:
       - dependency-name: "requests"
         versions: ["2.31.0"]
       - dependency-name: "vt-py"
-        versions: ["0.18.0"] 
+        versions: ["0.18.0"]
