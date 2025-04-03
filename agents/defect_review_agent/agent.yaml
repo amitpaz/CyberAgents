@@ -6,16 +6,46 @@
 # and outputs.
 
 agent:
-  name: "defect_review_agent"
+  name: DefectReviewAgent
   uuid: "00000000-0000-0000-0000-000000000000"
   responsibilities: >-
     TODO: Define responsibilities for defect_review_agent.
+  description: "An agent that analyzes security vulnerabilities identified by the AppSec Engineer Agent and provides detailed remediation guidance and code examples for fixing the issues."
+  version: "1.0.0"
+  author: "CyberAgents Team"
+  type: specialized
+  capabilities:
+    - Vulnerability remediation
+    - Code fixing
+    - Security best practices
+    - Pattern recognition
+    - Code context analysis
+  config:
+    max_suggestions_per_finding: 3  # Maximum number of remediation suggestions per finding
+    prioritize_critical: true  # Prioritize critical and high severity findings
+    include_code_examples: true  # Include code examples in remediation suggestions
+  dependencies:
+    - AppSecEngineerAgent
 
 system_prompt: |
   TODO: Provide a system prompt for this agent.
 
 tools: []
 external_knowledge: []
-inputs: []
-outputs: []
+inputs:
+  - name: findings
+    description: "Security findings from AppSec Engineer Agent"
+    type: object
+    required: true
+  - name: code
+    description: "Original code with vulnerabilities"
+    type: string
+    required: false
+outputs:
+  - name: remediation_suggestions
+    description: "List of remediation suggestions for each finding"
+    type: array
+  - name: summary
+    description: "Summary of remediation advice"
+    type: object
 steps: []
