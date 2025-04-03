@@ -6,12 +6,23 @@ import json
 import pytest
 from langchain_openai import ChatOpenAI
 from dotenv import load_dotenv
+import logging
+
+# Configure logging
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 # Load environment variables
 load_dotenv()
 
-# Get model configuration
-MODEL_NAME = os.environ.get("OPENAI_MODEL_NAME", "o3-mini")
+# --- Configuration --- 
+DEFAULT_OPENAI_MODEL = os.environ.get("OPENAI_MODEL_NAME", "gpt-4o")
+DEFAULT_OLLAMA_MODEL = "phi:latest" # Specify a default local model
+OLLAMA_BASE_URL = "http://localhost:11434/v1" # Default Ollama endpoint
+
+# Determine if running in local LLM mode
+USE_LOCAL_LLM = os.getenv("USE_LOCAL_LLM", "false").lower() == "true"
+# --- End Configuration ---
 
 class CustomChatOpenAI(ChatOpenAI):
     """Custom ChatOpenAI class that doesn't use temperature for the o3-mini model."""
@@ -72,28 +83,57 @@ class CustomChatOpenAI(ChatOpenAI):
             del kwargs["temperature"]
         return super()._generate(messages, stop, run_manager, **kwargs)
 
-def create_llm():
-    """Create a custom LLM configuration based on the model name."""
-    api_key = os.environ.get("OPENAI_API_KEY")
-    api_base = os.environ.get("OPENAI_API_BASE")
-    
-    if not api_key:
-        # Use pytest.skip in tests, raise error otherwise
-        try:
-            pytest.skip("OPENAI_API_KEY not set")
-        except NameError:
-            raise ValueError("OPENAI_API_KEY environment variable is not set")
+def create_llm() -> CustomChatOpenAI:
+    """Creates a ChatOpenAI instance, configured for OpenAI or a local Ollama instance based on USE_LOCAL_LLM env var."""
 
-    if MODEL_NAME == "o3-mini":
-        return CustomChatOpenAI(
-            model=MODEL_NAME,
+    model_name: str
+    api_key: str
+    base_url: str | None = None
+    temperature: float = 0.7 # Default temperature
+
+    if USE_LOCAL_LLM:
+        logger.info(f"--- Using local LLM via Ollama --- ")
+        # Use Ollama configuration
+        base_url = os.getenv("OLLAMA_BASE_URL", OLLAMA_BASE_URL)
+        model_name = os.getenv("OLLAMA_MODEL", DEFAULT_OLLAMA_MODEL)
+        api_key = "ollama" # Ollama doesn't require a key
+        # Temperature can be kept or adjusted for local models
+        temperature = 0.7 
+        logger.info(f"Model: {model_name}, Base URL: {base_url}")
+
+    else:
+        logger.info(f"--- Using remote OpenAI LLM --- ")
+        # Use standard OpenAI configuration
+        model_name = os.getenv("OPENAI_MODEL_NAME", DEFAULT_OPENAI_MODEL)
+        api_key = os.getenv("OPENAI_API_KEY")
+        base_url = os.getenv("OPENAI_API_BASE") # Respect if user wants to proxy OpenAI
+        temperature = 0.7
+
+        if not api_key:
+             # Use pytest.skip in tests, raise error otherwise
+            try:
+                pytest.skip("OPENAI_API_KEY not set for remote LLM usage")
+            except NameError:
+                raise ValueError("OPENAI_API_KEY environment variable is not set and is required when not using local LLM")
+        logger.info(f"Model: {model_name}, Base URL: {base_url or 'Default OpenAI'}")
+
+
+    # Instantiate using the determined parameters
+    # Check if the selected model is 'o3-mini' to apply custom logic
+    if model_name == "o3-mini":
+         logger.info("Applying custom configuration for o3-mini (no temperature).")
+         llm = CustomChatOpenAI(
+            model=model_name,
             openai_api_key=api_key,
-            openai_api_base=api_base
+            openai_api_base=base_url # Pass base_url whether local or remote
+            # Temperature is omitted by the CustomChatOpenAI class for o3-mini
         )
     else:
-        return CustomChatOpenAI(
-            model=MODEL_NAME,
-            temperature=0.7,
+        llm = CustomChatOpenAI(
+            model=model_name,
+            temperature=temperature,
             openai_api_key=api_key,
-            openai_api_base=api_base
-        ) 
+            openai_api_base=base_url # Pass base_url whether local or remote
+        )
+        
+    return llm

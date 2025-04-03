@@ -50,6 +50,36 @@ def test_run_lookup_failure(mock_ipwhois, asn_tool):
     result = asn_tool._run(ip_address="invalid-ip")
 
     assert "error" in result
-    assert "WHOIS lookup failed" in result["error"]
-    mock_ipwhois.assert_called_once_with("invalid-ip")
-    mock_instance.lookup_whois.assert_called_once_with(inc_raw=False) 
+    # Check for the validation error message, not the underlying exception
+    assert "Invalid IP address format provided" in result["error"]
+    assert "invalid-ip" in result["error"]
+    mock_instance.lookup_whois.assert_not_called()
+
+# Add more specific invalid IP tests
+@pytest.mark.parametrize(
+    "invalid_ip, description",
+    [
+        ("", "Empty string"),
+        ("not-an-ip", "Non-IP string"),
+        ("256.256.256.256", "Invalid IPv4"),
+        ("::ffff::1", "Malformed IPv6"),
+        ("192.168.1.1; ls", "Command injection attempt"),
+        (None, "None input"),
+        (127001, "Integer input"),
+    ]
+)
+@patch('tools.asn_ip_lookup_tool.IPWhois') # Still need mock even if not called
+def test_run_invalid_ip_inputs(mock_ipwhois, asn_tool, invalid_ip, description):
+    """Test various invalid IP address formats."""
+    mock_instance = MagicMock()
+    mock_ipwhois.return_value = mock_instance
+    
+    result = asn_tool._run(ip_address=invalid_ip)
+    
+    print(f"Testing {description}: Input='{invalid_ip}', Result='{result}'") # Debugging output
+    assert "error" in result
+    assert isinstance(result["error"], str)
+    assert "Invalid IP address format" in result["error"]
+    assert str(invalid_ip) in result["error"]
+    # Ensure the underlying library was not called
+    mock_instance.lookup_whois.assert_not_called()

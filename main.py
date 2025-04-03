@@ -377,7 +377,7 @@ def main():
     """Main entry point, parses args and runs the analysis."""
     setup_telemetry()
     parser = argparse.ArgumentParser(description="Run security analysis using a managed crew of agents.")
-    parser.add_argument("prompt", type=str, help="The user request (e.g., 'Analyze domain walla.co.il')")
+    parser.add_argument("prompt", type=str, help="The user request (e.g., 'Analyze domain example.com')")
     parser.add_argument(
         "-v", "--verbose",
         action="store_true",
@@ -391,28 +391,32 @@ def main():
         help="Specify the output format (default: rich)."
     )
     args = parser.parse_args()
-    
+
+    # --- Removed Input Validation Block --- 
+
     try:
         logger.info("Initializing Domain Intelligence Crew...")
-        crew_runner = DomainIntelligenceCrew(verbose=args.verbose)
+        crew_manager = DomainIntelligenceCrew(verbose=args.verbose)
         logger.info(f"Starting analysis for prompt: \"{args.prompt}\"")
-        results = crew_runner.run_analysis(args.prompt, output_format=args.output)
+        results = crew_manager.run_analysis(args.prompt, output_format=args.output)
         
-        # Display results using Rich instead of logging JSON
         display_results(results, output_format=args.output)
         
+    except RuntimeError as e:
+         logger.error(f"Initialization failed: {e}")
+         # Optionally exit here if initialization MUST succeed
+         # sys.exit(1) 
     except Exception as e:
-        # Use Rich Console for critical errors too
         console = Console()
         console.print(Panel(
-            f"[bold red]Critical error during execution:[/bold red]\n\n{str(e)}",
+            f"[bold red]Critical error during execution:[/bold red]\\n\\n{str(e)}",
             title="Execution Failed",
             border_style="red"
         ))
-        logger.error(f"Critical error during crew initialization or execution: {str(e)}", exc_info=True)
+        logger.error(f"An unexpected error occurred during analysis: {e}", exc_info=True)
+        # Optionally exit here
+        # sys.exit(1)
 
 if __name__ == "__main__":
-    # Need Console here if main fails before display_results
-    from rich.console import Console 
-    from rich.panel import Panel
+    # Removed imports that were added only for the reverted exception block if any
     main() 
