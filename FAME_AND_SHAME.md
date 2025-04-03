@@ -1,4 +1,4 @@
-# Third-Party Dependency Hall of Shame and Fame
+# Dependency Fame and Shame
 
 ## Dependency Upgrade Blockers 🧐
 
@@ -38,7 +38,7 @@ The AI/ML ecosystem packages (langchain, instructor, etc.) tend to have more com
 
 ## Maintenance Guide
 
-This document should be updated every time dependency upgrades are attempted to track:
+This document (FAME_AND_SHAME.md) should be updated every time dependency upgrades are attempted to track:
 
 1. **Packages that block upgrades** - When a package prevents upgrading another dependency, add it to the Blockers section with:
 
