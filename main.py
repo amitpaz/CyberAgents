@@ -100,7 +100,7 @@ def setup_telemetry():
 
 def discover_and_load_agents(base_path: str = "agents") -> Dict[str, Type]:
     """Dynamically discovers and loads agent classes from subdirectories."""
-    agent_classes = {}
+    agent_classes: Dict[str, Type[BaseAgent]] = {}
     agents_dir = Path(base_path)
     # Regex to allow only valid Python module characters (alphanumeric + underscore)
     # and prevent directory traversal or other malicious patterns.

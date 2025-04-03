@@ -1,26 +1,46 @@
-"""Agent responsible for DNS analysis."""
+"""
+DNS Analyzer Agent specialized in DNS record lookup and analysis.
 
+This agent uses DNS lookup tools to gather information about domain names.
+"""
+
+import logging
+
+# Import necessary components
 from crewai import Agent
 
 from agents.base_agent import BaseAgent
-from tools import DNSTool
+from tools.dns_lookup.dns_tool import DNSTool
 from utils.llm_utils import create_llm
+
+logger = logging.getLogger(__name__)
 
 
 class DNSAnalyzerAgent(BaseAgent):
-    """Creates and configures the DNS analysis agent.
+    """Agent specialized in performing DNS lookups and analysis.
 
-    This agent specializes in retrieving and interpreting various DNS records
-    (A, MX, NS, TXT, AAAA, DNSSEC) for a given domain name.
+    Uses the DNSLookupTool to query various DNS record types.
     """
 
     def __init__(self):
-        """Initializes the agent with its configuration."""
+        """Initialize the DNS Analyzer Agent."""
+        super().__init__()
+        self.agent_name = "DNSAnalyzerAgent"
+        self.agent_role = "DNS Specialist"
+        self.agent_goal = "Perform DNS lookups and analyze domain records."
+        self.agent_backstory = (
+            "An expert in DNS protocols and tools, specialized in querying and"
+            " interpreting DNS records for domain intelligence."
+        )
+        self.agent_tools = [DNSTool()]
+        logger.info("DNS Analyzer Agent initialized")
+
+        # Initialize the crewai Agent
         self.agent = Agent(
-            role="DNS Analyst",
-            goal="Analyze and extract structured DNS records for a specific domain.",
-            backstory="An expert in Domain Name System (DNS) infrastructure. You accurately query and interpret various DNS record types (A, MX, NS, TXT, etc.) and DNSSEC status, presenting the information in a clear, structured format.",
-            tools=[DNSTool()],
+            role=self.agent_role,
+            goal=self.agent_goal,
+            backstory=self.agent_backstory,
+            tools=self.agent_tools,
             llm=create_llm(),
             verbose=True,
             allow_delegation=False,

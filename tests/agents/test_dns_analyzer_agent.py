@@ -11,7 +11,7 @@ def test_dns_analyzer_agent_initialization():
         agent_instance = DNSAnalyzerAgent()
         assert agent_instance is not None
         assert agent_instance.agent is not None
-        assert agent_instance.agent.role == "DNS Analyst"
+        assert agent_instance.agent.role == "DNS Specialist"
     except ValueError as e:
         pytest.fail(f"DNSAnalyzerAgent initialization failed: {e}")
     except Exception as e:

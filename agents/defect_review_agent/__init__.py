@@ -1,5 +1,7 @@
 """Defect Review Agent module for analyzing and providing fixes for security vulnerabilities."""
 
-from agents.defect_review_agent.defect_review_agent import DefectReviewAgent
+from .defect_review_agent import (  # noqa: F401 -- Explicitly expose for dynamic loading
+    DefectReviewAgent,
+)
 
-__all__ = ["DefectReviewAgent"] 
+__all__ = ["DefectReviewAgent"]

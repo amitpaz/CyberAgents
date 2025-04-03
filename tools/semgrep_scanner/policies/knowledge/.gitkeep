@@ -1,0 +1,2 @@
+# This file exists to ensure the policies/knowledge directory is included in Git.
+# Local policies will be downloaded to language-specific subdirectories by the policy sync utility. 

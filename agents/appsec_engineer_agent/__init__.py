@@ -1,5 +1,7 @@
 """AppSec Engineer Agent module for security analysis of code."""
 
-from agents.appsec_engineer_agent.appsec_engineer_agent import AppSecEngineerAgent
+from .appsec_engineer_agent import (  # noqa: F401 -- Explicitly expose for dynamic loading
+    AppSecEngineerAgent,
+)
 
-__all__ = ["AppSecEngineerAgent"] 
+__all__ = ["AppSecEngineerAgent"]

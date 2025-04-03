@@ -20,8 +20,12 @@ def mock_env():
 
 
 # Apply mocks needed for ExposureAnalystAgent initialization
-@patch("tools.nmap_port_scan_tool.nmap_port_scan_tool.subprocess.run")  # Mock nmap executable check
-@patch("tools.nmap_port_scan_tool.nmap_port_scan_tool.nmap.PortScanner")  # Mock nmap library scanner init
+@patch(
+    "tools.nmap_port_scan_tool.nmap_port_scan_tool.subprocess.run"
+)  # Mock nmap executable check
+@patch(
+    "tools.nmap_port_scan_tool.nmap_port_scan_tool.nmap.PortScanner"
+)  # Mock nmap library scanner init
 @patch("tools.shodan_search.shodan_tool.shodan.Shodan")  # Mock Shodan client
 def test_exposure_analyst_agent_initialization(
     mock_shodan_client,

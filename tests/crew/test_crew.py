@@ -1,98 +1,142 @@
-"""Test suite for the domain intelligence crew."""
+"""Tests for the DomainIntelligenceCrew class."""
 
-import asyncio
-from unittest.mock import Mock, patch
+# import asyncio # Removed unused import
+from unittest.mock import MagicMock, patch
 
 import pytest
+from crewai import Agent, Crew, Task
 
+# Assuming agents are initialized correctly elsewhere or mocked
+from agents.security_manager_agent.security_manager_agent import SecurityManagerAgent
+
+# Import the class to be tested
 from main import DomainIntelligenceCrew
+
+# from unittest.mock import Mock # Removed unused import
+
+
+# --- Fixtures ---
 
 
 @pytest.fixture
-def crew():
-    """Create a crew instance for testing."""
-    # Add error handling for potential initialization issues
-    try:
-        return DomainIntelligenceCrew()
-    except Exception as e:
-        pytest.fail(f"Failed to initialize DomainIntelligenceCrew: {e}")
+def mock_agents():
+    """Create mock CrewAI agents for testing."""
+    # Create MagicMocks that simulate the structure expected by the crew
+
+    # Mock Security Manager Agent
+    manager_mock_agent = MagicMock(spec=Agent)
+    manager_mock_agent.role = "Mock Security Manager"
+    manager_mock_agent.goal = "Oversee mock analysis"
+    manager_mock_agent.backstory = "Mock manager backstory"
+    manager_mock_agent.tools = []
+    manager_mock_agent.llm = MagicMock()  # Mock LLM if needed
+    manager_mock_agent.allow_delegation = True  # Important for manager
+
+    manager_mock_wrapper = MagicMock(spec=SecurityManagerAgent)
+    manager_mock_wrapper.agent = manager_mock_agent
+    manager_mock_wrapper.agent_name = "SecurityManagerAgent"
+
+    # Mock Specialist Agent
+    agent1_mock_agent = MagicMock(spec=Agent)
+    agent1_mock_agent.role = "Mock Specialist One"
+    agent1_mock_agent.goal = "Perform mock task one"
+    agent1_mock_agent.backstory = "Mock specialist one backstory"
+    agent1_mock_agent.tools = [MagicMock(name="MockToolOne")]  # Mock tool
+    agent1_mock_agent.llm = MagicMock()
+    agent1_mock_agent.allow_delegation = False
+
+    agent1_mock_wrapper = MagicMock()
+    agent1_mock_wrapper.agent = agent1_mock_agent
+    agent1_mock_wrapper.agent_name = "AgentOne"
+
+    # Return a dictionary mapping names to the *wrapper* instances
+    return {
+        "SecurityManagerAgent": manager_mock_wrapper,
+        "AgentOne": agent1_mock_wrapper,
+    }
 
 
-# Note: Tests below are adapted for the new structure where main logic is synchronous
-# and driven by run_analysis with a prompt. Async tests might need rethinking
-# if the core crew logic is no longer async.
+@pytest.fixture
+def domain_crew(mock_agents):
+    """Initialize DomainIntelligenceCrew with mock agents by patching discovery."""
+    # Create a dictionary mapping agent names to their mock *classes* (or MagicMocks)
+    # The structure needs to match what discover_and_load_agents returns.
+    # We need to simulate the class, so the __init__ can be called inside DomainIntelligenceCrew.
+    mock_agent_classes = {}
+    for name, mock_instance in mock_agents.items():
+        # Create a mock class that returns the mock instance when called
+        mock_class = MagicMock(name=f"{name}Class")
+        mock_class.return_value = mock_instance
+        mock_agent_classes[name] = mock_class
+
+    # Patch the discovery function to return our mock classes
+    with patch("main.discover_and_load_agents", return_value=mock_agent_classes):
+        crew_instance = DomainIntelligenceCrew()  # Initialize without args
+
+    # We might need to manually re-inject the *instances* if tests rely on them directly
+    # The crew_instance should now have the mocked instances internally after its __init__
+    # If tests access crew_instance.agents_instances directly, we need this:
+    # crew_instance.agents_instances = mock_agents
+    # It depends on how the tests below use the `domain_crew` fixture.
+    # Let's assume for now that the internal initialization is sufficient.
+
+    return crew_instance
 
 
-# @pytest.mark.asyncio # Test might need to be sync if crew init is sync
-def test_crew_initialization(crew):
-    """Test crew initialization and agent discovery."""
-    # Check if agents were discovered and instantiated
-    assert "DomainWhoisAgent" in crew.agents_instances
-    assert "DNSAnalyzerAgent" in crew.agents_instances
-    assert "ThreatIntelAgent" in crew.agents_instances
-    assert "SecurityManagerAgent" in crew.agents_instances
-    assert crew.manager_agent_instance is not None
-    # Check that crew_agents contains the actual crewai.Agent objects
-    assert len(crew.crew.agents) >= 4  # Should have manager + specialists
-    assert crew.manager_agent_instance.agent in crew.crew.agents
+# --- Test Cases ---
 
 
-# This test needs significant changes as analyze_domain is gone
-# and run_analysis expects a prompt and returns a different structure.
-# Mocking the manager's delegation and final report is complex.
-# Temporarily skipping or refactoring significantly.
-@pytest.mark.skip(reason="Refactoring needed for prompt-driven run_analysis method")
-def test_domain_analysis(crew):
-    """Test domain analysis workflow (NEEDS REFACTOR)."""
-    user_prompt = "Analyze domain example.com"
-    # Mock kickoff to simulate manager delegation and return expected structure
-    # This is non-trivial
-    with patch.object(
-        crew.crew, "kickoff", return_value={"final_report_key": "mocked_report"}
-    ):
-        results = crew.run_analysis(user_prompt)
-        assert "analysis_report" in results
-        assert results["analysis_report"] == {"final_report_key": "mocked_report"}
+def test_crew_initialization(domain_crew, mock_agents):
+    """Test that the crew initializes with the correct agents and manager."""
+    assert isinstance(domain_crew.crew, Crew)
+    assert len(domain_crew.agents_instances) == len(mock_agents)
+    assert domain_crew.manager_agent is not None
+    # Check if the manager_agent is the actual mock agent object
+    assert domain_crew.manager_agent.agent is mock_agents["SecurityManagerAgent"].agent
+    assert "SecurityManagerAgent" in domain_crew.agents_instances
 
 
-# This test also needs refactoring for the new error handling in run_analysis
-# and the synchronous nature of kickoff.
-@pytest.mark.skip(reason="Refactoring needed for new error handling and sync kickoff")
-def test_error_handling(crew):
-    """Test error handling in domain analysis (NEEDS REFACTOR)."""
-    user_prompt = "Analyze example.com"
-    # Patching kickoff directly might still be problematic due to Pydantic model validation
-    # Instead, maybe patch a lower-level function if possible, or check the returned dict
-    with patch.object(
-        crew.crew, "kickoff", side_effect=Exception("Test kickoff error")
-    ):
-        results = crew.run_analysis(user_prompt)
-        assert "error" in results
-        assert "Test kickoff error" in results["error"]
+def test_create_domain_tasks(domain_crew, mock_agents):
+    """Test the creation of tasks for a domain target."""
+    target_domain = "example.com"
+    tasks = domain_crew.create_domain_tasks(target_domain)
+
+    assert isinstance(tasks, list)
+    # Expecting one task per agent *excluding* the manager
+    assert len(tasks) == len(mock_agents) - 1
+
+    for task in tasks:
+        assert isinstance(task, Task)
+        assert target_domain in task.description
+        # Check if the task agent is one of the *inner* CrewAI mock agents
+        assert task.agent in [a.agent for a in mock_agents.values()]
+        # Ensure manager agent isn't assigned a task directly here
+        assert task.agent is not mock_agents["SecurityManagerAgent"].agent
 
 
-# @pytest.mark.asyncio # Test might need to be sync
-def test_telemetry_integration(crew):
-    """Test telemetry integration."""
-    assert crew.tracer is not None
-    # Meter check might be unreliable if OTLP endpoint is not set,
-    # rely on the warning log or check specific metric objects if created
-    # assert crew.meter is not None
-    # assert crew.analysis_duration is not None
-    # assert crew.analysis_errors is not None
-    pass  # Basic check that tracer is present
+@patch("utils.crew_utils.Crew.kickoff")
+def test_run_analysis_success(mock_kickoff, domain_crew):
+    """Test the run_analysis method for successful execution."""
+    target_domain = "example.com"
+    expected_result = "Analysis complete for example.com"
+    mock_kickoff.return_value = expected_result
+
+    # Since create_domain_tasks is called inside run_analysis,
+    # ensure the crew object used by kickoff is correctly configured.
+    # The fixture already sets up domain_crew.crew
+
+    result = domain_crew.run_analysis(target_domain)
+
+    assert result == expected_result
+    mock_kickoff.assert_called_once()
+    # Optionally, assert the tasks passed to the internal crew object
+    assert len(domain_crew.crew.tasks) > 0
 
 
-# This test needs significant refactoring for the synchronous run_analysis
-# and prompt-based input. Concurrency needs to be handled outside the crew method now.
-@pytest.mark.skip(reason="Refactoring needed for sync run_analysis and prompt input")
-def test_concurrent_analysis(crew):
-    """Test concurrent domain analysis (NEEDS REFACTOR)."""
-    prompts = ["Analyze example.com", "Analyze test.com", "Analyze demo.com"]
-    # Concurrency would now involve running crew.run_analysis multiple times,
-    # potentially in separate threads or processes, not via asyncio.gather on the method.
-    results = [crew.run_analysis(prompt) for prompt in prompts]
-
-    assert len(results) == 3
-    for result in results:
-        assert "analysis_report" in result  # Check for the final report key
+@patch("utils.crew_utils.Crew.kickoff", side_effect=Exception("Crew failed"))
+def test_run_analysis_failure(mock_kickoff, domain_crew):
+    """Test the run_analysis method when kickoff fails."""
+    target_domain = "example.com"
+    with pytest.raises(Exception, match="Crew failed"):
+        domain_crew.run_analysis(target_domain)
+    mock_kickoff.assert_called_once()

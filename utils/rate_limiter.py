@@ -1,8 +1,10 @@
 """Rate limiter utility for controlling API requests."""
 
+import asyncio
 import os
 import time
-from typing import Optional
+from collections import deque
+from typing import Deque, Optional
 
 
 class RateLimiter:
@@ -20,7 +22,7 @@ class RateLimiter:
             os.getenv("MAX_API_REQUESTS_PER_MINUTE", "10")
         )
         self.time_window = time_window
-        self.requests = []
+        self.requests: Deque[float] = deque()
 
     async def acquire(self) -> None:
         """Acquire a rate limit token.
@@ -31,9 +33,9 @@ class RateLimiter:
         now = time.time()
 
         # Remove old requests outside the time window
-        self.requests = [
+        self.requests = deque(
             req_time for req_time in self.requests if now - req_time < self.time_window
-        ]
+        )
 
         if len(self.requests) >= self.max_requests:
             # Calculate wait time
@@ -46,4 +48,4 @@ class RateLimiter:
 
     def reset(self) -> None:
         """Reset the rate limiter."""
-        self.requests = []
+        self.requests = deque()

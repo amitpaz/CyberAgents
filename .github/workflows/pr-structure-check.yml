@@ -1,0 +1,104 @@
+name: PR Structure Check
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  check-pr-structure:
+    runs-on: ubuntu-latest
+    name: Validate PR Structure
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install PyGithub pyyaml
+
+      - name: Check PR Structure
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          cat > check_pr.py << 'EOL'
+          import os
+          import re
+          import sys
+          from github import Github
+
+          def check_pr_structure():
+              # Get PR information from environment
+              pr_number = os.environ.get('PR_NUMBER')
+              pr_title = os.environ.get('PR_TITLE', '')
+              pr_body = os.environ.get('PR_BODY', '')
+
+              errors = []
+
+              # Check PR title follows semantic versioning format
+              semantic_pattern = r'^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-z0-9-]+\))?: .+'
+              if not re.match(semantic_pattern, pr_title):
+                  errors.append("PR title doesn't follow semantic versioning format (e.g., feat: add new feature)")
+
+              # Check required sections in PR body
+              required_sections = [
+                  "## Description",
+                  "## Changes Made",
+                  "## Testing"
+              ]
+
+              for section in required_sections:
+                  if section not in pr_body:
+                      errors.append(f"Missing required section: {section}")
+
+              # Check if Changes Made section has at least one bullet point
+              changes_section_match = re.search(r'## Changes Made\s+(?P<content>.*?)(?=##|\Z)', pr_body, re.DOTALL)
+              if changes_section_match:
+                  changes_content = changes_section_match.group('content').strip()
+                  if not re.search(r'[-*]', changes_content):
+                      errors.append("'Changes Made' section should have at least one bullet point")
+
+              # Check if Testing section has content
+              testing_section_match = re.search(r'## Testing\s+(?P<content>.*?)(?=##|\Z)', pr_body, re.DOTALL)
+              if testing_section_match:
+                  testing_content = testing_section_match.group('content').strip()
+                  if not testing_content:
+                      errors.append("'Testing' section should not be empty")
+
+              # Post comment with issues if any
+              if errors:
+                  # Connect to GitHub
+                  github_token = os.environ.get('GITHUB_TOKEN')
+                  github = Github(github_token)
+                  repo = github.get_repo(os.environ.get('GITHUB_REPOSITORY'))
+                  pr = repo.get_pull(int(pr_number))
+
+                  # Prepare error message
+                  error_message = "### PR Structure Validation Failed\n\n"
+                  error_message += "Please fix the following issues with your PR:\n\n"
+                  for error in errors:
+                      error_message += f"- {error}\n"
+                  error_message += "\nPlease refer to the PR template for guidance."
+
+                  # Post comment
+                  pr.create_issue_comment(error_message)
+                  print("PR structure validation failed.")
+                  for error in errors:
+                      print(f"- {error}")
+                  return 1
+
+              print("PR structure validation passed!")
+              return 0
+
+          sys.exit(check_pr_structure())
+          EOL
+
+          python check_pr.py

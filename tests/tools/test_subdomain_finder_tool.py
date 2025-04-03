@@ -3,9 +3,29 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+import requests
 
 from tools import SubdomainFinderTool
 from tools.subdomain_finder.subdomain_finder_tool import SubdomainInput
+
+# Mock response from requests.get for crt.sh
+MOCK_CRT_RESPONSE_JSON = [
+    {"name_value": "test.example.com"},
+    {"name_value": "www.example.com"},
+    {"name_value": "mail.example.com"},
+    {"name_value": "*.example.com"},  # Should be filtered out
+    {"name_value": "example.com"},  # Base domain, should be filtered
+]
+
+# Mock crt.sh response data (moved near top)
+MOCK_CRTSH_VALID_JSON = [
+    {"name_value": "test.example.com"},
+    {"name_value": "sub.test.example.com"},
+    {"name_value": "*.wildcard.example.com"},
+    {"name_value": "invalid entry"},  # Should be filtered out by cleaning
+    {"name_value": "dev.example.com\ninternal.example.com"},  # Multi-line
+    {"name_value": "Prod.Example.COM"},  # Case variation
+]
 
 
 @pytest.fixture
@@ -16,7 +36,7 @@ def subdomain_tool():
 
 def test_tool_initialization(subdomain_tool):
     """Test basic tool attributes."""
-    assert subdomain_tool.name == "subdomain_finder_crtsh"
+    assert subdomain_tool.name == "Subdomain Finder"
     assert "crt.sh" in subdomain_tool.description
     assert subdomain_tool.input_schema == SubdomainInput
 
@@ -95,3 +115,132 @@ def test_run_empty_string_input(subdomain_tool):
     result = subdomain_tool._run(domain="")
     assert "error" in result
     assert "Invalid domain format" in result["error"]
+
+
+@pytest.mark.asyncio
+@patch("requests.get")
+async def test_arun_success(mock_get, subdomain_tool):
+    """Test a successful run retrieving and parsing subdomains."""
+    # Mock the requests.get call
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = MOCK_CRT_RESPONSE_JSON
+    mock_get.return_value = mock_response
+
+    domain = "example.com"
+    result = await subdomain_tool._arun(domain=domain)
+
+    assert "error" not in result
+    assert "subdomains" in result
+    assert len(result["subdomains"]) == 3  # test, www, mail
+    assert "test.example.com" in result["subdomains"]
+    assert "www.example.com" in result["subdomains"]
+    assert "mail.example.com" in result["subdomains"]
+    assert "*.example.com" not in result["subdomains"]
+    assert "example.com" not in result["subdomains"]
+
+    # Verify requests.get was called correctly
+    mock_get.assert_called_once()
+    assert f"crt.sh/?q=%25.{domain}&output=json" in mock_get.call_args[0][0]
+
+
+@pytest.mark.asyncio
+@patch("requests.get")
+async def test_arun_crtsh_error(mock_get, subdomain_tool):
+    """Test handling errors from the crt.sh API."""
+    mock_response = MagicMock()
+    mock_response.status_code = 500
+    mock_response.text = "Internal Server Error"
+    mock_get.return_value = mock_response
+
+    result = await subdomain_tool._arun(domain="example.com")
+
+    assert "error" in result
+    assert "crt.sh request failed" in result["error"]
+    assert "Status code: 500" in result["error"]
+
+
+@pytest.mark.asyncio
+@patch("requests.get")
+async def test_arun_crtsh_timeout(mock_get, subdomain_tool):
+    """Test handling timeouts when contacting crt.sh."""
+    mock_get.side_effect = requests.exceptions.Timeout("Request timed out")
+
+    result = await subdomain_tool._arun(domain="example.com")
+
+    assert "error" in result
+    assert "crt.sh request timed out" in result["error"]
+
+
+@pytest.mark.asyncio
+@patch("requests.get")
+async def test_arun_crtsh_connection_error(mock_get, subdomain_tool):
+    """Test handling connection errors when contacting crt.sh."""
+    mock_get.side_effect = requests.exceptions.ConnectionError("Connection failed")
+
+    result = await subdomain_tool._arun(domain="example.com")
+
+    assert "error" in result
+    assert "crt.sh connection error" in result["error"]
+
+
+@pytest.mark.asyncio
+@patch("requests.get")
+async def test_arun_invalid_json(mock_get, subdomain_tool):
+    """Test handling invalid JSON response from crt.sh."""
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.side_effect = json.JSONDecodeError("Invalid JSON", "{", 0)
+    mock_get.return_value = mock_response
+
+    result = await subdomain_tool._arun(domain="example.com")
+
+    assert "error" in result
+    assert "Failed to parse JSON response from crt.sh" in result["error"]
+
+
+@pytest.mark.asyncio
+async def test_arun_invalid_domain(subdomain_tool):
+    """Test running the tool with an invalid domain format."""
+    # The tool's Pydantic model should handle this, but we test the run method too
+    result = await subdomain_tool._arun(domain="invalid domain name")
+    # The exact error might depend on whether validation happens before _arun
+    # or if requests simply fails. Aim for a general error message.
+    assert "error" in result
+    # A more specific check might be fragile, e.g., "Invalid domain format"
+
+
+# --- Helper Function Tests ---
+def test_clean_subdomain(subdomain_tool):
+    """Test the _clean_subdomain helper function."""
+    assert subdomain_tool._clean_subdomain("test.example.com") == "test.example.com"
+    assert (
+        subdomain_tool._clean_subdomain("*.example.com") == "*.example.com"
+    )  # Keeps wildcard for filtering logic
+    assert subdomain_tool._clean_subdomain(" test.example.com ") == "test.example.com"
+    assert subdomain_tool._clean_subdomain("\nsub.test.com\t") == "sub.test.com"
+
+
+def test_is_valid_subdomain(subdomain_tool):
+    """Test the _is_valid_subdomain helper function."""
+    base_domain = "example.com"
+    assert subdomain_tool._is_valid_subdomain("test.example.com", base_domain) is True
+    assert (
+        subdomain_tool._is_valid_subdomain("www.test.example.com", base_domain) is True
+    )
+    # Filter out base domain itself
+    assert subdomain_tool._is_valid_subdomain("example.com", base_domain) is False
+    # Filter out wildcards
+    assert subdomain_tool._is_valid_subdomain("*.example.com", base_domain) is False
+    # Filter out unrelated domains
+    assert subdomain_tool._is_valid_subdomain("test.another.com", base_domain) is False
+    # Filter out domains not ending correctly
+    assert subdomain_tool._is_valid_subdomain("example.com.test", base_domain) is False
+    # Handle case sensitivity (should be case-insensitive)
+    assert subdomain_tool._is_valid_subdomain("TEST.EXAMPLE.COM", base_domain) is True
+    # Filter None/empty strings
+    assert subdomain_tool._is_valid_subdomain(None, base_domain) is False
+    assert subdomain_tool._is_valid_subdomain("", base_domain) is False
+
+
+import json

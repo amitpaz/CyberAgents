@@ -76,3 +76,25 @@ filterwarnings = [
     "ignore::DeprecationWarning:pkg_resources.*:",
     "ignore:open_text is deprecated. Use files():DeprecationWarning:litellm.*"
 ]
+
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+
+[tool.isort]
+profile = "black"
+line_length = 88
+
+[tool.flake8]
+exclude = [
+    ".git",
+    "__pycache__",
+    "docs",
+    "venv",
+    ".venv",
+    "build",
+    "dist",
+    "*.egg-info",
+]
+max-line-length = 88
+extend-ignore = ["E203"] # Ignore whitespace before ':' (compatible with black)
