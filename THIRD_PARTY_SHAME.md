@@ -35,3 +35,24 @@ These packages are well-maintained and allow us to use their latest versions wit
 The testing utilities and linting tools tend to be the most progressive in supporting modern Python and dependency versions. Infrastructure and utility libraries also perform well.
 
 The AI/ML ecosystem packages (langchain, instructor, etc.) tend to have more complex dependency trees and strict version pinning, making upgrades more challenging.
+
+## Maintenance Guide
+
+This document should be updated every time dependency upgrades are attempted to track:
+
+1. **Packages that block upgrades** - When a package prevents upgrading another dependency, add it to the Blockers section with:
+
+   - Which package is blocked
+   - What's blocking it
+   - The specific version constraints causing the issue
+   - A shame level (🧐 for minor annoyances, 🧐🧐 for significant blockers)
+
+1. **Successfully upgraded packages** - When a package is successfully upgraded, add or update it in the Champions section with:
+
+   - The package name
+   - The new version number
+   - A status note and 🤩 emoji
+
+1. **Packages that became unblocked** - If a package previously in the Blockers section is resolved (either by the blocking package relaxing its requirements or by upgrading the entire dependency chain), move it to the Champions section.
+
+This document serves as both documentation and motivation to keep dependencies up to date.
