@@ -1,6 +1,6 @@
 ---
   name: PR Validation
-  
+
   on:
     pull_request:
       # Trigger on PRs targeting the main branch
@@ -15,12 +15,12 @@
           type: boolean
     # push:
     #   branches: [main]
-  
+
   # Add permissions required by the dependency review action
   permissions:
     contents: read
     pull-requests: write # Allows the action to post comments
-  
+
   jobs:
     validate:
       runs-on: ubuntu-latest
@@ -32,55 +32,55 @@
       env:
          # For PRs (default), use local LLM. For dispatch, use input.
          USE_LOCAL_LLM_INPUT: ${{ github.event_name == 'pull_request' || github.event.inputs.use_local_llm == 'true' }}
-  
+
       steps:
         - name: Checkout code
           uses: actions/checkout@v4
           # Fetch history needed for pytest-picked diff
           with:
             fetch-depth: 0
-  
+
         - name: Set up Python ${{ matrix.python-version }}
           uses: actions/setup-python@v5
           with:
             python-version: ${{ matrix.python-version }}
-  
+
         - name: Install Poetry
           uses: snok/install-poetry@v1
           with:
             virtualenvs-create: true
             virtualenvs-in-project: true
             installer-parallel: true
-  
+
         - name: Load cached venv
           id: cached-poetry-dependencies
           uses: actions/cache@v4
           with:
             path: .venv
             key: venv-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/poetry.lock') }}
-  
+
         - name: Install dependencies
           if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
           run: poetry install --no-interaction --no-root
-  
+
         - name: Install project and test extras
           # Install root project and extras like pytest-picked
           run: poetry install --no-interaction --extras test
-  
+
         # Pre-commit is good practice, but ensure its config aligns with poetry environment
         # - name: Run pre-commit hooks
         #   run: poetry run pre-commit run --all-files
-  
+
         - name: Fetch target branch for diff
           run: git fetch origin ${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}
-  
-        # --- Ollama Setup (Conditional) --- 
+
+        # --- Ollama Setup (Conditional) ---
         - name: Install and Run Ollama (if using local LLM)
           if: env.USE_LOCAL_LLM_INPUT == 'true'
           run: ./.github/scripts/install_ollama.sh
-        # --- End Ollama Setup --- 
-  
-        # --- Test Execution (Conditional Env Vars) --- 
+        # --- End Ollama Setup ---
+
+        # --- Test Execution (Conditional Env Vars) ---
         - name: Run tests on changed files in 'tests' (excluding security)
           env:
             # Conditionally set LLM env vars
@@ -103,7 +103,7 @@
           run: |
             echo "Running tests in tests/test_security.py"
             poetry run pytest --picked --parent-branch origin/${{ github.base_ref }} -v tests/test_security.py
-  
+
         - name: Run tests on changed files in 'agents' directory
           env:
             USE_LOCAL_LLM: ${{ env.USE_LOCAL_LLM_INPUT }}
@@ -113,7 +113,7 @@
           run: |
             echo "Running tests in agents/"
             poetry run pytest --picked --parent-branch origin/${{ github.base_ref }} -v agents/
-  
+
         - name: Run tests on changed files in 'tools' directory
           env:
             USE_LOCAL_LLM: ${{ env.USE_LOCAL_LLM_INPUT }}
@@ -123,25 +123,33 @@
           run: |
             echo "Running tests in tools/"
             poetry run pytest --picked --parent-branch origin/${{ github.base_ref }} -v tools/
-        # --- End Test Execution --- 
-  
+        # --- End Test Execution ---
+
     security_scan: # New job for Semgrep
       runs-on: ubuntu-latest
       needs: [] # Runs in parallel with validate
       steps:
         - name: Checkout code
           uses: actions/checkout@v4
-          
+
         # Semgrep action might require Python, include setup just in case
         - name: Set up Python
           uses: actions/setup-python@v5
           with:
             python-version: '3.11' # Match the version used for tests
-            
+
         - name: Run Semgrep SAST Scan
           uses: returntocorp/semgrep-action@v1
           with:
             publishToken: ${{ secrets.SEMGREP_APP_TOKEN }} # Optional
+            config: .semgrep.yml # Use our custom configuration file
+            include: # Explicitly include Python and Bash files
+              - '**/*.py'
+              - '**/*.sh'
+              - 'scripts/*'
+            severity: WARNING # Report warnings and above
+            error-on: error # Fail on error level issues
+            verbose: true # Provide detailed output
 
     dependency_review: # New job for dependency vulnerability check
       runs-on: ubuntu-latest
@@ -149,11 +157,11 @@
       steps:
         - name: Checkout code
           uses: actions/checkout@v4
-          
+
         - name: Dependency Review
           uses: actions/dependency-review-action@v4
           with:
             # Block PRs with vulnerabilities of high severity or higher
-            fail-on-severity: high 
-            # Optional: comment on PR with findings 
-            # comment-summary-in-pr: true 
+            fail-on-severity: high
+            # Optional: comment on PR with findings
+            # comment-summary-in-pr: true

@@ -1,0 +1,90 @@
+name: Manual GitHub Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_tag:
+        description: 'Version tag to create (e.g., v1.0.0)'
+        required: true
+        type: string
+      target_commitish:
+        description: 'Target commit SHA or branch name for the release'
+        required: false
+        default: 'main'
+        type: string
+      release_title:
+        description: 'Release title (Optional - defaults to tag)'
+        required: false
+        type: string
+      release_notes:
+        description: 'Release notes (Optional - Markdown allowed)'
+        required: false
+        type: string
+      is_draft:
+        description: 'Create as a draft release?'
+        required: false
+        default: false
+        type: boolean
+      is_prerelease:
+        description: 'Mark as a pre-release?'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write # Needed to create releases
+
+jobs:
+  create_release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          # Checkout the specific commit/branch for the release
+          ref: ${{ github.event.inputs.target_commitish }}
+          # Fetch all history for accurate tagging if needed
+          fetch-depth: 0
+
+      - name: Build gh command arguments
+        id: gh_args
+        run: |
+          ARGS=""
+          if [[ "${{ github.event.inputs.is_draft }}" == "true" ]]; then
+            ARGS="$ARGS --draft"
+          fi
+          if [[ "${{ github.event.inputs.is_prerelease }}" == "true" ]]; then
+            ARGS="$ARGS --prerelease"
+          fi
+          if [[ -n "${{ github.event.inputs.release_title }}" ]]; then
+            ARGS="$ARGS --title '${{ github.event.inputs.release_title }}'"
+          fi
+          # Use provided notes or generate automatically if empty (optional)
+          # For automatic notes, you might use --generate-notes
+          # For provided notes, use --notes
+          if [[ -n "${{ github.event.inputs.release_notes }}" ]]; then
+             # Escape notes for shell and write to file to avoid command length issues
+             echo "${{ github.event.inputs.release_notes }}" > release_notes.md
+             ARGS="$ARGS --notes-file release_notes.md"
+          else
+             # Default to generating notes if none provided
+             ARGS="$ARGS --generate-notes"
+          fi
+
+          # Set the arguments as an output
+          echo "gh_command_args=$ARGS" >> $GITHUB_OUTPUT
+
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Creating release ${{ github.event.inputs.version_tag }} targeting ${{ github.event.inputs.target_commitish }}"
+          echo "Arguments: ${{ steps.gh_args.outputs.gh_command_args }}"
+
+          # Use eval carefully to handle arguments with spaces/quotes correctly
+          eval "gh release create ${{ github.event.inputs.version_tag }} \
+            --target ${{ github.event.inputs.target_commitish }} \
+            ${{ steps.gh_args.outputs.gh_command_args }}"
+
+          echo "Release created (or draft created)."
