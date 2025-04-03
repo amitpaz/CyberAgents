@@ -1,0 +1,55 @@
+name: AppSecEngineerAgent
+description: "An agent specialized in application security that analyzes code, identifies vulnerabilities using Semgrep, and provides remediation guidance through coordination with the Defect Review Agent."
+version: "1.0.0"
+author: "CyberAgents Team"
+type: specialized
+capabilities:
+  - Code analysis
+  - Vulnerability detection
+  - Static security testing
+  - Language identification
+  - Repository scanning
+  - Remediation coordination
+config:
+  rate_limit: 10  # Maximum number of scans per hour
+  max_code_size: 500  # Maximum size of code to analyze in KB
+  supported_languages:
+    - python
+    - javascript
+    - java
+    - go
+    - ruby
+    - php
+    - c
+    - cpp
+  max_scan_time: 300  # Maximum time for scan execution in seconds
+  semgrep_rules:
+    - p/security-audit
+    - p/owasp-top-ten
+  temp_dir: "/tmp/appsec-scans"  # Directory for temporary cloned repositories
+dependencies:
+  - semgrep
+  - DefectReviewAgent
+inputs:
+  - name: code
+    description: "Code snippet to analyze for security vulnerabilities"
+    type: string
+    required: false
+  - name: repository_url
+    description: "GitHub repository URL to clone and analyze"
+    type: string
+    required: false
+  - name: language
+    description: "Programming language of the code (auto-detected if not specified)"
+    type: string
+    required: false
+outputs:
+  - name: findings
+    description: "Security vulnerabilities and issues found in the code"
+    type: array
+  - name: severity_summary
+    description: "Summary of findings by severity level"
+    type: object
+  - name: scan_metadata
+    description: "Information about the scan process, duration, and coverage"
+    type: object 
