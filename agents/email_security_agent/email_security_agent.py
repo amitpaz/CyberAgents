@@ -1,31 +1,51 @@
-"""Agent responsible for Email Security (SPF/DMARC) validation."""
+"""Agent responsible for validating email addresses and checking associated security records.
 
+This agent combines email syntax validation with DNS checks (MX, DMARC, SPF) to
+assess the deliverability and security posture of an email address.
+"""
+
+import logging
+
+# Import necessary components
 from crewai import Agent
 
 from agents.base_agent import BaseAgent
-from tools import EmailValidationTool  # Corrected import
+from tools.email_validation.email_validation_tool import EmailValidationTool
 from utils.llm_utils import create_llm
 
+logger = logging.getLogger(__name__)
 
-class EmailSecurityAgent:
-    """Creates and configures the Email Security validation agent.
 
-    This agent specializes in validating SPF and DMARC DNS records for a domain
-    and providing suggestions for improvement based on best practices.
+class EmailSecurityAgent(BaseAgent):
+    """Agent specialized in email security analysis.
+
+    Uses the EmailSecurityTool to check MX, SPF, and DMARC records.
     """
 
     def __init__(self):
-        """Initializes the agent with its configuration."""
+        """Initialize the Email Security Agent."""
+        super().__init__()
+        self.agent_name = "EmailSecurityAgent"
+        self.agent_role = "Email Security Specialist"
+        self.agent_goal = (
+            "Validate email addresses and analyze their security configuration (MX, SPF,"
+            " DMARC)."
+        )
+        self.agent_backstory = (
+            "An expert focused on email address validation and security. You verify email"
+            " syntax, check for domain existence and MX records, and analyze SPF and"
+            " DMARC policies to assess email deliverability and security posture."
+        )
+        self.agent_tools = [EmailValidationTool()]
+        logger.info("Email Security Agent initialized")
+
+        # Initialize the crewai Agent
         self.agent = Agent(
-            role="Email Security Specialist",
-            goal="Validate SPF and DMARC DNS records for a specific domain, identify issues, and propose remediation steps.",
-            backstory=(
-                "An expert in email authentication protocols (SPF, DKIM, DMARC). "
-                "You meticulously check DNS records for proper configuration, analyze policies, "
-                "and provide actionable suggestions to improve email deliverability and security posture."
-            ),
-            tools=[EmailValidationTool()],  # Use the new tool
+            role=self.agent_role,
+            goal=self.agent_goal,
+            backstory=self.agent_backstory,
+            tools=self.agent_tools,
             llm=create_llm(),
             verbose=True,
-            allow_delegation=False,  # This agent performs a specific task
+            allow_delegation=False,
         )

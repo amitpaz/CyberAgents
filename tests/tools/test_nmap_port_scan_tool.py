@@ -1,12 +1,18 @@
 """Tests for the NmapPortScanTool."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import nmap  # Import nmap for errors
 import pytest
 
 from tools import NmapPortScanTool
 from tools.nmap_port_scan_tool.nmap_port_scan_tool import sanitize_nmap_arguments
+
+# Constants for testing
+TEST_TARGET = "127.0.0.1"
+TEST_PORTS = "22,80,443"
+TEST_SCAN_TYPE = "T4"
+TEST_ARGUMENTS = "-sV --script=default"
 
 
 @pytest.fixture
@@ -217,3 +223,213 @@ def test_run_safe_arguments_passed(mock_scanner, mock_run):
     mock_scan_instance.scan.assert_called_once()
     call_args = mock_scan_instance.scan.call_args
     assert call_args[1]["arguments"] == safe_args  # Check safe args passed
+
+
+# Fixture to create an instance of the tool
+@pytest.fixture
+def nmap_tool():
+    # Mock nmap.PortScanner during initialization to avoid real Nmap calls
+    with patch("nmap.PortScanner", return_value=MagicMock()) as mock_scanner:
+        tool = NmapPortScanTool()
+        # Attach the mock scanner to the tool instance for assertion
+        tool._mock_scanner = mock_scanner
+        return tool
+
+
+# Mock PortScanner object to be used in tests
+@pytest.fixture
+def mock_scanner_instance(nmap_tool):
+    # Return the mocked scanner instance created in the nmap_tool fixture
+    return nmap_tool.nm  # Access the underlying mock scanner
+
+
+# --- Initialization Tests ---
+@patch(
+    "nmap.PortScanner", side_effect=nmap.PortScannerError("nmap program was not found")
+)
+def test_tool_initialization_nmap_not_found(mock_scanner_error):
+    """Test tool initialization when Nmap executable is not found."""
+    tool = NmapPortScanTool()
+    assert tool.nm is None  # Scanner should be None if Nmap is missing
+    assert tool.is_available is False
+    assert "Nmap not available" in tool.description
+    mock_scanner_error.assert_called_once()
+
+
+# --- Availability Test ---
+def test_tool_availability(nmap_tool):
+    """Test the is_available property."""
+    # Case 1: Nmap is available (mocked successfully)
+    assert nmap_tool.is_available is True
+
+    # Case 2: Nmap is not available
+    with patch("nmap.PortScanner", side_effect=nmap.PortScannerError):
+        tool_unavailable = NmapPortScanTool()
+        assert tool_unavailable.is_available is False
+
+
+# --- Execution Tests (_arun) ---
+
+
+@pytest.mark.asyncio
+async def test_arun_nmap_unavailable(nmap_tool):
+    """Test running the tool when Nmap is not available."""
+    nmap_tool.nm = None  # Simulate Nmap not being available
+    result = await nmap_tool._arun(target=TEST_TARGET)
+    assert "error" in result
+    assert "Nmap Port Scanner tool is not available" in result["error"]
+
+
+@pytest.mark.asyncio
+async def test_arun_successful_scan(nmap_tool, mock_scanner_instance):
+    """Test a successful scan execution."""
+    # Configure the mock scanner's behavior
+    mock_scan_results = {
+        "scan": {
+            TEST_TARGET: {
+                "status": {"state": "up"},
+                "tcp": {
+                    80: {
+                        "state": "open",
+                        "name": "http",
+                        "product": "nginx",
+                        "version": "1.18.0",
+                    },
+                    443: {"state": "closed", "name": "https"},
+                },
+            }
+        },
+        "nmap": {"scanstats": {"elapsed": "5.00"}},
+    }
+    # Mock the scan method and the dictionary-like access
+    mock_scanner_instance.scan.return_value = mock_scan_results["scan"]
+    mock_scanner_instance.__getitem__.side_effect = lambda key: mock_scan_results[
+        "scan"
+    ][key]
+    # Mock scan_info() which might be implicitly used by scan() in some versions or for details
+    type(mock_scanner_instance).scaninfo = PropertyMock(
+        return_value={"tcp": {"method": "syn"}}
+    )
+    # Mock all_hosts() behavior
+    mock_scanner_instance.all_hosts.return_value = [TEST_TARGET]
+
+    result = await nmap_tool._arun(
+        target=TEST_TARGET,
+        ports=TEST_PORTS,
+        scan_type=TEST_SCAN_TYPE,
+        arguments=TEST_ARGUMENTS,
+    )
+
+    assert "error" not in result
+    assert result["target"] == TEST_TARGET
+    assert result["status"] == "up"
+    assert len(result["ports"]) == 2  # 80 (open), 443 (closed)
+    assert result["ports"][0]["port"] == 80
+    assert result["ports"][0]["state"] == "open"
+    assert result["ports"][0]["service"] == "http"
+    assert result["ports"][0]["product"] == "nginx"
+    assert result["ports"][0]["version"] == "1.18.0"
+    assert result["ports"][1]["port"] == 443
+    assert result["ports"][1]["state"] == "closed"
+
+    # Verify nmap.PortScanner().scan was called correctly
+    expected_args = f"-sV --script=default -{TEST_SCAN_TYPE}"
+    mock_scanner_instance.scan.assert_called_once_with(
+        hosts=TEST_TARGET, ports=TEST_PORTS, arguments=expected_args
+    )
+
+
+@pytest.mark.asyncio
+async def test_arun_target_down(nmap_tool, mock_scanner_instance):
+    """Test when the target host is down."""
+    mock_scan_results = {
+        "scan": {TEST_TARGET: {"status": {"state": "down"}}},
+        "nmap": {"scanstats": {"elapsed": "2.00"}},
+    }
+    mock_scanner_instance.scan.return_value = mock_scan_results["scan"]
+    mock_scanner_instance.__getitem__.side_effect = lambda key: mock_scan_results[
+        "scan"
+    ][key]
+    type(mock_scanner_instance).scaninfo = PropertyMock(return_value={})
+    mock_scanner_instance.all_hosts.return_value = [TEST_TARGET]
+
+    result = await nmap_tool._arun(target=TEST_TARGET)
+
+    assert "error" not in result
+    assert result["target"] == TEST_TARGET
+    assert result["status"] == "down"
+    assert len(result["ports"]) == 0
+    mock_scanner_instance.scan.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_arun_nmap_error(nmap_tool, mock_scanner_instance):
+    """Test handling of errors during the Nmap scan process."""
+    error_message = "Failed to resolve target hostname"
+    mock_scanner_instance.scan.side_effect = nmap.PortScannerError(error_message)
+
+    result = await nmap_tool._arun(target="invalid.hostname")
+
+    assert "error" in result
+    assert "Nmap scan failed" in result["error"]
+    assert error_message in result["error"]
+    mock_scanner_instance.scan.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_arun_unexpected_error(nmap_tool, mock_scanner_instance):
+    """Test handling of unexpected errors during processing."""
+    error_message = "Something unexpected happened"
+    # Simulate an error *after* scan completes, during result processing
+    mock_scanner_instance.scan.return_value = {}  # Simulate empty scan results first
+    mock_scanner_instance.all_hosts.side_effect = Exception(error_message)
+
+    result = await nmap_tool._arun(target=TEST_TARGET)
+
+    assert "error" in result
+    assert "Unexpected error processing Nmap results" in result["error"]
+    assert error_message in result["error"]
+    # Scan might have been called, but processing failed
+    mock_scanner_instance.scan.assert_called_once()
+
+
+# --- Argument Construction Tests ---
+def test_build_arguments(nmap_tool):
+    """Test the _build_arguments helper method."""
+    # Test case 1: Basic arguments
+    args1 = nmap_tool._build_arguments("T4", "-sV")
+    assert args1 == "-sV -T4"
+
+    # Test case 2: Scan type already in arguments
+    args2 = nmap_tool._build_arguments("T4", "-sV -T4")
+    assert args2 == "-sV -T4"
+
+    # Test case 3: Different scan type in arguments
+    args3 = nmap_tool._build_arguments("T4", "-sV -T3")
+    assert args3 == "-sV -T3"
+
+    # Test case 4: No extra arguments
+    args4 = nmap_tool._build_arguments("T4", None)
+    assert args4 == "-T4"
+
+    # Test case 5: No scan type
+    args5 = nmap_tool._build_arguments(None, "-sV")
+    assert args5 == "-sV"
+
+    # Test case 6: No scan type or arguments
+    args6 = nmap_tool._build_arguments(None, None)
+    assert args6 == ""  # Expect empty string
+
+
+def mock_nmap_process_success():
+    """Return a mock NmapProcess for successful scan."""
+    mock_process = MagicMock()
+    mock_process.summary = "Nmap scan report for test.com (127.0.0.1)"
+    # ... rest of function ...
+
+
+def mock_nmap_process_error():
+    """Return a mock NmapProcess for error scan."""
+    mock_process = MagicMock()
+    mock_process.summary = "Failed to resolve domain test.com"
+    # ... rest of function ...

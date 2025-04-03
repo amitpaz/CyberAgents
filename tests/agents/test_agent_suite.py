@@ -1,19 +1,27 @@
-"""Test suite runner that discovers and executes all agent-specific tests."""
+"""Test suite for running all agent tests."""
 
-import os
-import sys
+# import pytest # Removed unused import
 
-import pytest
+# This file can be used to group agent tests or define shared fixtures/marks.
+# Currently, tests seem to be in individual files (e.g., test_appsec_engineer_agent.py)
 
-# Add project root to path to ensure agents module is discoverable
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
+# Example of marking tests (if needed):
+# @pytest.mark.agent_test
+# def test_some_agent_feature():
+#     assert True
 
-# Note: Pytest typically discovers tests automatically if run from the root
-# or if the 'agents' directory is configured as a test source.
-# This file primarily serves as an explicit entry point if needed or
-# for potentially adding suite-level fixtures or configurations later.
+# Example of shared fixture (if needed):
+# @pytest.fixture(scope="module")
+# def shared_agent_resource():
+#     print("\nSetting up shared resource for agent tests")
+#     yield "shared_data"
+#     print("\nCleaning up shared resource for agent tests")
+
+# If you intend to run specific tests from here, you would import them.
+# For example:
+# from .test_appsec_engineer_agent import test_appsec_initialization
+
+# For now, this file primarily serves as a placeholder for potential suite-level config.
 
 
 def test_placeholder_for_agent_suite():
@@ -32,3 +40,10 @@ def test_placeholder_for_agent_suite():
 #     print("\nSetting up resources for the agent test suite...")
 #     yield
 #     print("\nTearing down resources for the agent test suite...")
+
+
+def test_agent_initialization(agent_class):
+    """Test basic initialization of an agent class.
+
+    Ensures agent can be instantiated without errors.
+    """

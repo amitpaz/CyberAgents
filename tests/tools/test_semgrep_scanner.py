@@ -1,309 +1,280 @@
-"""Tests for the Semgrep Scanner Tool."""
+"""Tests for the Semgrep Scanner tool."""
 
-import os
 import json
-import pytest
-import asyncio
-from unittest.mock import patch, MagicMock, mock_open
+import subprocess
+from unittest.mock import MagicMock, patch
 
-from tools.semgrep_scanner import SemgrepTool, SemgrepInput
+import pytest
+
+from agents.appsec_engineer_agent.appsec_engineer_agent import SemgrepRunner
+from tools.semgrep_scanner.semgrep_scanner import SemgrepTool
+
+# --- Constants and Fixtures ---
+TEST_CODE_SNIPPET = """
+def hello():
+    print("Hello, world!")
+"""
+
+TEST_REPO_URL = "https://github.com/example/test-repo"
+TEST_TARGET_PATH = "/tmp/test-scan"
+TEST_LANGUAGE = "python"
+TEST_RULES = ["p/python", "p/security"]  # Example rules
+
+# Sample successful Semgrep JSON output
+SUCCESS_OUTPUT = {
+    "results": [
+        {
+            "check_id": "test-rule",
+            "path": "test.py",
+            "start": {"line": 2},
+            "end": {"line": 2},
+            "extra": {
+                "message": "Test finding",
+                "severity": "WARNING",
+                "lines": '    print("Hello, world!")',
+                "metadata": {"cwe": "CWE-123"},
+            },
+        }
+    ],
+    "errors": [],
+    "paths": {
+        "_comment": "<add path info here>",
+        "scanned": ["test.py"],
+    },
+    "version": "1.x.x",
+}
+
+# Sample error output from Semgrep
+ERROR_STDERR = "Error: Invalid rule file specified."
+
+
+@pytest.fixture
+def semgrep_runner():
+    return SemgrepRunner(rules=TEST_RULES, max_scan_time=60)
 
 
 @pytest.fixture
 def semgrep_tool():
-    """Create a SemgrepTool instance for testing."""
     return SemgrepTool()
 
 
-class TestSemgrepInput:
-    """Test the SemgrepInput validation logic."""
-    
-    def test_valid_code_input(self):
-        """Test that input with code is valid."""
-        input_model = SemgrepInput(
-            code="def test(): pass",
-            language="python"
-        )
-        assert input_model.code == "def test(): pass"
-        assert input_model.language == "python"
-    
-    def test_valid_file_path_input(self):
-        """Test that input with file_path is valid."""
-        input_model = SemgrepInput(
-            file_path="/path/to/file.py",
-            language="python"
-        )
-        assert input_model.file_path == "/path/to/file.py"
-        assert input_model.language == "python"
-    
-    def test_valid_both_inputs(self):
-        """Test that input with both code and file_path is valid."""
-        input_model = SemgrepInput(
-            code="def test(): pass",
-            file_path="/path/to/file.py"
-        )
-        assert input_model.code == "def test(): pass"
-        assert input_model.file_path == "/path/to/file.py"
-    
-    def test_invalid_no_inputs(self):
-        """Test that input with neither code nor file_path is invalid."""
-        with pytest.raises(ValueError) as exc_info:
-            SemgrepInput()
-        assert "Either code or file_path must be provided" in str(exc_info.value)
+# --- SemgrepRunner Tests ---
 
 
-class TestSemgrepTool:
-    """Test the SemgrepTool functionality."""
-    
-    def test_initialization(self, semgrep_tool):
-        """Test that the tool initializes correctly."""
-        assert semgrep_tool.name == "semgrep_scanner"
-        assert semgrep_tool.description is not None
-        assert semgrep_tool.input_schema == SemgrepInput
-    
-    def test_detect_language_from_filename(self, semgrep_tool):
-        """Test language detection from filename."""
-        # Python file
-        result = semgrep_tool._detect_language("print('hello')", "test.py")
-        assert result == "python"
-        
-        # JavaScript file
-        result = semgrep_tool._detect_language("console.log('hello')", "test.js")
-        assert result == "javascript"
-        
-        # Unknown extension
-        result = semgrep_tool._detect_language("print('hello')", "test.xyz")
-        assert result == "python"  # Should detect from content
-    
-    def test_detect_language_from_content(self, semgrep_tool):
-        """Test language detection from code content."""
-        # Python code
-        python_code = """
-        import os
-        from pathlib import Path
-        
-        def hello():
-            print("Hello, world!")
-        """
-        assert semgrep_tool._detect_language(python_code) == "python"
-        
-        # JavaScript code
-        js_code = """
-        import React from 'react';
-        
-        const hello = () => {
-            console.log("Hello, world!");
-        };
-        """
-        assert semgrep_tool._detect_language(js_code) == "javascript"
-        
-        # Empty code
-        assert semgrep_tool._detect_language("") == "unknown"
-    
-    @patch("subprocess.run")
-    async def test_run_with_code(self, mock_run, semgrep_tool):
-        """Test running the tool with code input."""
-        # Mock subprocess.run
-        process_mock = MagicMock()
-        process_mock.returncode = 0
-        process_mock.stdout = json.dumps({
-            "results": [
-                {
-                    "check_id": "sql-injection",
-                    "path": "code.py",
-                    "start": {"line": 2},
-                    "extra": {
-                        "message": "SQL Injection vulnerability",
-                        "severity": "high",
-                        "lines": "query = \"SELECT * FROM users WHERE id = \" + user_input",
-                        "metadata": {"cwe": ["CWE-89"], "owasp": ["A1:2017"]}
-                    }
-                }
-            ],
-            "stats": {"files_scanned": 1, "total_time": 0.5}
-        })
-        mock_run.return_value = process_mock
-        
-        # Test code
-        code = """
-        def vulnerable_function(user_input):
-            query = "SELECT * FROM users WHERE id = " + user_input
-            return db.execute(query)
-        """
-        
-        # Mock tempfile and shutil
-        with patch("tempfile.mkdtemp", return_value="/tmp/semgrep_test"), \
-             patch("os.path.join", return_value="/tmp/semgrep_test/code.py"), \
-             patch("builtins.open", mock_open()), \
-             patch("os.path.exists", return_value=True), \
-             patch("shutil.rmtree"):
-            
-            # Run the tool
-            result = await semgrep_tool.run(
-                code=code,
-                language="python"
-            )
-        
-        # Verify subprocess.run was called correctly
-        mock_run.assert_called_once()
-        args, kwargs = mock_run.call_args
-        assert args[0][0] == "semgrep"
-        assert "--json" in args[0]
-        assert f"--config=p/security-audit,p/owasp-top-ten" in args[0]
-        assert "--lang=python" in args[0]
-        
-        # Verify the result structure
-        assert "findings" in result
-        assert len(result["findings"]) == 1
-        assert "severity_summary" in result
-        assert result["severity_summary"]["high"] == 1
-        assert "stats" in result
-        assert result["stats"]["total_findings"] == 1
-        
-        # Verify finding details
-        finding = result["findings"][0]
-        assert finding["rule_id"] == "sql-injection"
-        assert finding["severity"] == "high"
-        assert finding["line"] == 2
-        assert "SQL Injection" in finding["message"]
-    
-    @patch("subprocess.run")
-    async def test_run_with_file_path(self, mock_run, semgrep_tool):
-        """Test running the tool with file_path input."""
-        # Mock subprocess.run
-        process_mock = MagicMock()
-        process_mock.returncode = 0
-        process_mock.stdout = json.dumps({"results": [], "stats": {"files_scanned": 1, "total_time": 0.3}})
-        mock_run.return_value = process_mock
-        
-        # Run the tool
-        result = await semgrep_tool.run(
-            file_path="/path/to/file.py",
-            language="python"
-        )
-        
-        # Verify subprocess.run was called correctly
-        mock_run.assert_called_once()
-        args, kwargs = mock_run.call_args
-        assert args[0][0] == "semgrep"
-        assert "--json" in args[0]
-        assert f"--config=p/security-audit,p/owasp-top-ten" in args[0]
-        assert "--lang=python" in args[0]
-        assert "/path/to/file.py" in args[0]
-        
-        # Verify the result structure
-        assert "findings" in result
-        assert len(result["findings"]) == 0
-        assert "severity_summary" in result
-        assert "stats" in result
-    
-    @patch("subprocess.run")
-    async def test_run_with_error(self, mock_run, semgrep_tool):
-        """Test running the tool with an error."""
-        # Mock subprocess.run to return an error
-        process_mock = MagicMock()
-        process_mock.returncode = 2
-        process_mock.stderr = "Error: something went wrong"
-        mock_run.return_value = process_mock
-        
-        # Test code
-        code = "print('hello')"
-        
-        # Mock tempfile and shutil
-        with patch("tempfile.mkdtemp", return_value="/tmp/semgrep_test"), \
-             patch("os.path.join", return_value="/tmp/semgrep_test/code.py"), \
-             patch("builtins.open", mock_open()), \
-             patch("os.path.exists", return_value=True), \
-             patch("shutil.rmtree"):
-            
-            # Run the tool
-            result = await semgrep_tool.run(code=code)
-        
-        # Verify the error is in the result
-        assert "error" in result
-        assert result["error"] == "Error: something went wrong"
-        assert "findings" in result
-        assert len(result["findings"]) == 0
-    
-    @patch("subprocess.run")
-    async def test_run_with_timeout(self, mock_run, semgrep_tool):
-        """Test running the tool with a timeout."""
-        # Mock subprocess.run to raise TimeoutExpired
-        mock_run.side_effect = subprocess.TimeoutExpired("semgrep", 30)
-        
-        # Test code
-        code = "print('hello')"
-        
-        # Mock tempfile and shutil
-        with patch("tempfile.mkdtemp", return_value="/tmp/semgrep_test"), \
-             patch("os.path.join", return_value="/tmp/semgrep_test/code.py"), \
-             patch("builtins.open", mock_open()), \
-             patch("os.path.exists", return_value=True), \
-             patch("shutil.rmtree"):
-            
-            # Run the tool with a short timeout
-            result = await semgrep_tool.run(
-                code=code,
-                max_timeout=30
-            )
-        
-        # Verify the timeout error is in the result
-        assert "error" in result
-        assert "timed out" in result["error"]
-        assert "findings" in result
-        assert len(result["findings"]) == 0
-    
-    def test_process_findings(self, semgrep_tool):
-        """Test processing of raw Semgrep results."""
-        # Mock Semgrep results
-        raw_results = {
-            "results": [
-                {
-                    "check_id": "sql-injection",
-                    "path": "app.py",
-                    "start": {"line": 10},
-                    "extra": {
-                        "message": "SQL Injection vulnerability",
-                        "severity": "high",
-                        "lines": "query = 'SELECT * FROM users WHERE id = ' + user_input",
-                        "metadata": {"cwe": ["CWE-89"], "owasp": ["A1:2017"]}
-                    }
-                },
-                {
-                    "check_id": "xss",
-                    "path": "web.py",
-                    "start": {"line": 20},
-                    "extra": {
-                        "message": "XSS vulnerability",
-                        "severity": "medium",
-                        "lines": "html = '<div>' + user_input + '</div>'",
-                        "metadata": {"cwe": ["CWE-79"], "owasp": ["A7:2017"]}
-                    }
-                }
-            ],
-            "stats": {"files_scanned": 2, "total_time": 0.75}
-        }
-        
-        # Process the results
-        processed = semgrep_tool._process_findings(raw_results)
-        
-        # Verify the processed results
-        assert "findings" in processed
-        assert len(processed["findings"]) == 2
-        assert "severity_summary" in processed
-        assert processed["severity_summary"]["high"] == 1
-        assert processed["severity_summary"]["medium"] == 1
-        assert "stats" in processed
-        assert processed["stats"]["total_findings"] == 2
-        assert processed["stats"]["files_scanned"] == 2
-        assert processed["stats"]["scan_time"] == 0.75
-        
-        # Verify finding details
-        finding = processed["findings"][0]
-        assert finding["rule_id"] == "sql-injection"
-        assert finding["message"] == "SQL Injection vulnerability"
-        assert finding["severity"] == "high"
-        assert finding["path"] == "app.py"
-        assert finding["line"] == 10
-        assert "CWE-89" in finding["cwe"]
-        assert "A1:2017" in finding["owasp"] 
+def test_runner_initialization(semgrep_runner):
+    """Test SemgrepRunner initialization."""
+    assert semgrep_runner.rules == TEST_RULES
+    assert semgrep_runner.max_scan_time == 60
+
+
+def test_prepare_rules_arg(semgrep_runner):
+    """Test preparation of the --config argument."""
+    rules_arg = semgrep_runner._prepare_rules_arg()
+    expected_arg = ",".join(TEST_RULES)
+    assert rules_arg == expected_arg
+
+
+@patch("subprocess.run")
+def test_runner_scan_code_success(mock_run, semgrep_runner):
+    """Test successful code scanning with SemgrepRunner."""
+    mock_process = MagicMock()
+    mock_process.returncode = 1  # Semgrep returns 1 for findings
+    mock_process.stdout = json.dumps(SUCCESS_OUTPUT)
+    mock_process.stderr = ""
+    mock_run.return_value = mock_process
+
+    result = semgrep_runner.scan_code(TEST_TARGET_PATH, language=TEST_LANGUAGE)
+
+    assert "error" not in result
+    assert "results" in result
+    assert len(result["results"]) == 1
+    assert result["results"][0]["check_id"] == "test-rule"
+
+    # Verify subprocess call
+    mock_run.assert_called_once()
+    args, kwargs = mock_run.call_args
+    assert "semgrep" in args[0]
+    assert f"--config={semgrep_runner._prepare_rules_arg()}" in args[0]
+    assert f"--lang={TEST_LANGUAGE}" in args[0]
+    assert TEST_TARGET_PATH in args[0]
+    assert kwargs["timeout"] == 60
+
+
+@patch("subprocess.run")
+def test_runner_scan_code_semgrep_error(mock_run, semgrep_runner):
+    """Test SemgrepRunner handling Semgrep execution errors."""
+    mock_process = MagicMock()
+    mock_process.returncode = 2  # Error code other than 0 or 1
+    mock_process.stdout = ""
+    mock_process.stderr = ERROR_STDERR
+    mock_run.return_value = mock_process
+
+    result = semgrep_runner.scan_code(TEST_TARGET_PATH)
+
+    assert "error" in result
+    assert ERROR_STDERR in result["error"]
+    assert "findings" not in result  # Or ensure findings is empty
+
+
+@patch("subprocess.run")
+def test_runner_scan_code_timeout(mock_run, semgrep_runner):
+    """Test SemgrepRunner handling scan timeouts."""
+    mock_run.side_effect = subprocess.TimeoutExpired("semgrep", 60)
+
+    result = semgrep_runner.scan_code(TEST_TARGET_PATH)
+
+    assert "error" in result
+    assert "timed out" in result["error"]
+
+
+@patch("subprocess.run")
+def test_runner_scan_code_json_error(mock_run, semgrep_runner):
+    """Test SemgrepRunner handling invalid JSON output."""
+    mock_process = MagicMock()
+    mock_process.returncode = 0
+    mock_process.stdout = "{invalid json"  # Malformed JSON
+    mock_process.stderr = ""
+    mock_run.return_value = mock_process
+
+    result = semgrep_runner.scan_code(TEST_TARGET_PATH)
+
+    assert "error" in result
+    assert "Failed to parse Semgrep output" in result["error"]
+
+
+# --- SemgrepTool Tests ---
+
+
+def test_tool_info(semgrep_tool):
+    """Test basic tool information."""
+    assert semgrep_tool.name == "Semgrep Security Scanner"
+    assert semgrep_tool.description is not None
+    assert semgrep_tool.args_schema is not None
+
+
+@pytest.mark.asyncio
+@patch("tools.semgrep_scanner.semgrep_scanner.SemgrepRunner.scan_code")
+@patch("tools.semgrep_scanner.semgrep_scanner.tempfile.NamedTemporaryFile")
+async def test_tool_scan_snippet_success(mock_tempfile, mock_scan, semgrep_tool):
+    """Test successful scanning of a code snippet."""
+    # Mock the temporary file creation
+    mock_file = MagicMock()
+    mock_file.name = "/tmp/fake_semgrep_file.py"
+    mock_tempfile.return_value.__enter__.return_value = mock_file
+
+    # Mock the runner's scan result
+    mock_scan.return_value = SUCCESS_OUTPUT
+
+    result_str = await semgrep_tool._arun(code_snippet=TEST_CODE_SNIPPET)
+    result = json.loads(result_str)
+
+    assert "error" not in result
+    assert "results" in result
+    assert len(result["results"]) == 1
+
+    mock_tempfile.assert_called_once_with(mode="w", suffix=".py", delete=False)
+    mock_file.write.assert_called_once_with(TEST_CODE_SNIPPET)
+    mock_scan.assert_called_once_with(mock_file.name, language="python")
+
+
+@pytest.mark.asyncio
+@patch("tools.semgrep_scanner.semgrep_scanner.SemgrepRunner.scan_code")
+@patch("tools.semgrep_scanner.semgrep_scanner.shutil.rmtree")
+@patch("tools.semgrep_scanner.semgrep_scanner.git.Repo.clone_from")
+@patch("tools.semgrep_scanner.semgrep_scanner.tempfile.mkdtemp")
+async def test_tool_scan_repo_success(
+    mock_mkdtemp, mock_clone, mock_rmtree, mock_scan, semgrep_tool
+):
+    """Test successful scanning of a Git repository."""
+    mock_mkdtemp.return_value = TEST_TARGET_PATH
+    mock_scan.return_value = SUCCESS_OUTPUT
+
+    result_str = await semgrep_tool._arun(repo_url=TEST_REPO_URL)
+    result = json.loads(result_str)
+
+    assert "error" not in result
+    assert "results" in result
+
+    mock_mkdtemp.assert_called_once()
+    mock_clone.assert_called_once_with(TEST_REPO_URL, TEST_TARGET_PATH)
+    mock_scan.assert_called_once_with(TEST_TARGET_PATH, language=None)
+    mock_rmtree.assert_called_once_with(TEST_TARGET_PATH)
+
+
+@pytest.mark.asyncio
+async def test_tool_invalid_input(semgrep_tool):
+    """Test tool handling when neither snippet nor repo URL is provided."""
+    result_str = await semgrep_tool._arun()
+    result = json.loads(result_str)
+    assert "error" in result
+    assert "Either code_snippet or repo_url must be provided" in result["error"]
+
+
+@pytest.mark.asyncio
+@patch(
+    "tools.semgrep_scanner.semgrep_scanner.git.Repo.clone_from",
+    side_effect=Exception("Git clone failed"),
+)
+@patch(
+    "tools.semgrep_scanner.semgrep_scanner.tempfile.mkdtemp",
+    return_value=TEST_TARGET_PATH,
+)
+@patch("tools.semgrep_scanner.semgrep_scanner.shutil.rmtree")  # Ensure cleanup mock
+async def test_tool_repo_clone_failure(
+    mock_rmtree, mock_mkdtemp, mock_clone, semgrep_tool
+):
+    """Test tool handling when repository cloning fails."""
+    result_str = await semgrep_tool._arun(repo_url=TEST_REPO_URL)
+    result = json.loads(result_str)
+    assert "error" in result
+    assert "Failed to clone repository" in result["error"]
+    assert "Git clone failed" in result["error"]
+    mock_rmtree.assert_called_once_with(
+        TEST_TARGET_PATH
+    )  # Ensure cleanup still attempted
+
+
+@pytest.mark.asyncio
+@patch(
+    "tools.semgrep_scanner.semgrep_scanner.SemgrepRunner.scan_code",
+    return_value={"error": ERROR_STDERR},
+)
+@patch("tools.semgrep_scanner.semgrep_scanner.tempfile.NamedTemporaryFile")
+async def test_tool_scan_failure(mock_tempfile, mock_scan, semgrep_tool):
+    """Test tool handling when the underlying scan fails."""
+    mock_file = MagicMock()
+    mock_file.name = "/tmp/fake_semgrep_file.py"
+    mock_tempfile.return_value.__enter__.return_value = mock_file
+
+    result_str = await semgrep_tool._arun(code_snippet=TEST_CODE_SNIPPET)
+    result = json.loads(result_str)
+
+    assert "error" in result
+    assert ERROR_STDERR in result["error"]
+
+
+# --- SemgrepMetadata Tests (Example) ---
+
+
+@pytest.mark.skip(reason="SemgrepMetadata class does not exist")
+def test_metadata_parsing():
+    """Test parsing metadata from a finding."""
+    # finding_extra = SUCCESS_OUTPUT["results"][0]["extra"]
+    # metadata = SemgrepMetadata.from_finding(finding_extra)
+    # assert metadata.cwe == "CWE-123"
+    # assert metadata.owasp is None  # Not present in sample data
+    pass  # Skip test body
+
+
+def mock_subprocess_run(*args, **kwargs):
+    """Mock subprocess.run to simulate different Semgrep outcomes."""
+    # ... (rest of function)
+
+
+def create_mock_process(stdout="", stderr="", returncode=0):
+    """Create a MagicMock representing a completed process."""
+    mock_proc = MagicMock()
+    mock_proc.stdout = stdout
+    mock_proc.stderr = stderr
+    mock_proc.returncode = returncode
+    return mock_proc

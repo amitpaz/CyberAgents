@@ -1,27 +1,48 @@
-"""Agent responsible for WHOIS analysis."""
+"""Domain WHOIS Agent specialized in retrieving WHOIS information for domains.
 
+This agent utilizes WHOIS lookup tools to gather registration and contact
+details associated with a given domain name.
+"""
+
+import logging
+
+# Import necessary components
 from crewai import Agent
 
-from agents.base_agent import BaseAgent
-from tools import WhoisTool
-from utils.llm_utils import create_llm
+from ...tools import WhoisLookupTool
+from ..base_agent import BaseAgent
+
+logger = logging.getLogger(__name__)
 
 
 class DomainWhoisAgent(BaseAgent):
-    """Creates and configures the WHOIS analysis agent.
+    """Agent specialized in performing WHOIS lookups for domains.
 
-    This agent specializes in retrieving and parsing WHOIS registration data
-    for a given domain name.
+    Uses the WhoisLookupTool to retrieve domain registration information.
     """
 
     def __init__(self):
-        """Initializes the agent with its configuration."""
+        """Initialize the Domain Registrar Analyst agent."""
+        super().__init__()
+        self.whois_tool = WhoisLookupTool()
         self.agent = Agent(
-            role="WHOIS Analyst",
-            goal="Analyze and extract structured WHOIS data for a specific domain.",
-            backstory="An expert specializing in domain registration and ownership data. You meticulously retrieve WHOIS records and parse them into a consistent, structured format, focusing on key details like registrar, creation/expiration dates, and name servers.",
-            tools=[WhoisTool()],
-            llm=create_llm(),
+            role="Domain Registrar Analyst",
+            goal="Retrieve and structure WHOIS information for a domain.",
+            backstory=(
+                "You are an analyst focused on domain registration data. You use WHOIS "
+                "lookups to find details about domain ownership, registration dates, "
+                "and nameservers, providing structured information."
+            ),
+            tools=[self.whois_tool],
             verbose=True,
-            allow_delegation=False,  # This agent performs a specific task
+            allow_delegation=False,
         )
+        self.agent_name = "DomainWhoisAgent"
+        self.agent_role = "Domain Registrar Analyst"
+        self.agent_goal = "Retrieve and structure WHOIS information for a domain."
+        self.agent_backstory = (
+            "A meticulous analyst specializing in domain registration data. You query"
+            " WHOIS servers to find domain ownership, contact information, registration"
+            " dates, and name server details, presenting findings clearly."
+        )
+        logger.info("Domain WHOIS Agent initialized")
