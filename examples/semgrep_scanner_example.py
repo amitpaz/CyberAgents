@@ -3,9 +3,10 @@
 Example script demonstrating how to use the Semgrep Scanner Tool.
 
 This script shows:
-1. How to scan a code snippet for vulnerabilities
-2. How to scan a file for vulnerabilities
-3. How to process and display the results
+1. How to scan a code snippet for vulnerabilities using registry rules
+2. How to scan a code snippet using local policies
+3. How to scan a file for vulnerabilities using both registry and local policies
+4. How to process and display the results
 """
 
 import os
@@ -18,6 +19,7 @@ import json
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from tools.semgrep_scanner import SemgrepTool
+from tools.semgrep_scanner.utils import sync_language_policies
 
 
 def print_header(title):
@@ -33,6 +35,14 @@ def print_findings(result):
     if "error" in result:
         print(f"Error: {result['error']}")
         return
+    
+    # Print policy config used
+    if "policy_config" in result:
+        policy = result["policy_config"]
+        print("Policy Configuration:")
+        print(f"  Preference: {policy.get('policy_preference', 'both')}")
+        print(f"  Registry rules: {', '.join(policy.get('registry_rules', []) or ['None'])}")
+        print(f"  Local rules: {len(policy.get('local_rules', []))} rules")
     
     # Print stats
     if "stats" in result:
@@ -89,9 +99,25 @@ def print_findings(result):
             print(f"   OWASP: {', '.join(finding['owasp'])}")
 
 
-async def scan_code_snippet():
-    """Demonstrate scanning a code snippet for vulnerabilities."""
-    print_header("Scanning Code Snippet")
+async def sync_policies():
+    """Synchronize required policies for the demo."""
+    print_header("Synchronizing Python Policies")
+    
+    print("Synchronizing Python policies from Semgrep repository...")
+    result = sync_language_policies(["python"])
+    
+    if result.get("success", False):
+        print(f"Successfully synchronized {result['total_policies']} policies")
+        for lang, count in result.get("languages", {}).items():
+            print(f"  {lang}: {count} policies")
+    else:
+        print(f"Warning: Policy synchronization failed. Will use registry rules only.")
+        print(f"Error: {result.get('message', 'Unknown error')}")
+
+
+async def scan_with_registry_rules():
+    """Demonstrate scanning a code snippet with Semgrep registry rules."""
+    print_header("Scanning with Registry Rules")
     
     # Example vulnerable code
     code = """
@@ -113,7 +139,7 @@ def process_user_data(user_input):
         return f.read()
 """
     
-    print("Analyzing the following code snippet:")
+    print("Analyzing code snippet with registry rules:")
     print("-" * 40)
     print(code)
     print("-" * 40)
@@ -122,16 +148,57 @@ def process_user_data(user_input):
     semgrep_tool = SemgrepTool()
     result = await semgrep_tool.run(
         code=code,
-        language="python"
+        language="python",
+        rules=["p/security-audit", "p/owasp-top-ten"],
+        policy_preference="registry"  # Use only registry rules
     )
     
     # Print results
     print_findings(result)
 
 
-async def scan_file():
-    """Demonstrate scanning a file for vulnerabilities."""
-    print_header("Scanning File")
+async def scan_with_local_policies():
+    """Demonstrate scanning a code snippet with local policies."""
+    print_header("Scanning with Local Policies")
+    
+    # Example vulnerable code with SQL injection
+    code = """
+def authenticate_user(username, password):
+    import sqlite3
+    
+    # SQL injection vulnerability in authentication function
+    conn = sqlite3.connect("users.db")
+    cursor = conn.cursor()
+    query = f"SELECT * FROM users WHERE username = '{username}' AND password = '{password}'"
+    cursor.execute(query)
+    user = cursor.fetchone()
+    
+    if user:
+        return True
+    return False
+"""
+    
+    print("Analyzing code snippet with local policies:")
+    print("-" * 40)
+    print(code)
+    print("-" * 40)
+    
+    # Initialize tool and scan code
+    semgrep_tool = SemgrepTool()
+    result = await semgrep_tool.run(
+        code=code,
+        language="python",
+        use_local_policies=True,
+        policy_preference="local"  # Use only local policies
+    )
+    
+    # Print results
+    print_findings(result)
+
+
+async def scan_with_both_policies():
+    """Demonstrate scanning a file with both registry and local policies."""
+    print_header("Scanning with Both Registry and Local Policies")
     
     # Get path to the vulnerable Python test file
     test_file = Path(__file__).parent / "test_cases" / "vulnerable_python.py"
@@ -140,12 +207,15 @@ async def scan_file():
         print(f"Test file not found: {test_file}")
         return
     
-    print(f"Scanning file: {test_file}")
+    print(f"Scanning file with both registry and local policies: {test_file}")
     
     # Initialize tool and scan file
     semgrep_tool = SemgrepTool()
     result = await semgrep_tool.run(
-        file_path=str(test_file)
+        file_path=str(test_file),
+        rules=["p/security-audit"],
+        use_local_policies=True,
+        policy_preference="both"  # Use both registry and local policies
     )
     
     # Print results
@@ -156,10 +226,15 @@ async def main():
     """Run the Semgrep Scanner Tool example."""
     print_header("Semgrep Scanner Tool Example")
     print("This example demonstrates how to use the Semgrep Scanner Tool to find")
-    print("security vulnerabilities in code snippets and files.")
+    print("security vulnerabilities in code snippets and files using different policy sources.")
     
-    await scan_code_snippet()
-    await scan_file()
+    # First, sync policies
+    await sync_policies()
+    
+    # Demo different policy configurations
+    await scan_with_registry_rules()
+    await scan_with_local_policies()
+    await scan_with_both_policies()
     
     print("\nExample completed.")
 

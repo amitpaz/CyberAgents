@@ -11,7 +11,8 @@ import json
 import tempfile
 import uuid
 import re
-from typing import Dict, List, Optional, Any
+import glob
+from typing import Dict, List, Optional, Any, Union
 from pathlib import Path
 import logging
 
@@ -45,6 +46,14 @@ class SemgrepInput(BaseModel):
         300,
         description="Maximum execution time in seconds"
     )
+    use_local_policies: bool = Field(
+        False,
+        description="Whether to use local policies from the policies directory"
+    )
+    policy_preference: str = Field(
+        "both",
+        description="Policies to use: 'local' (only local), 'registry' (only registry), or 'both' (default)"
+    )
     
     @field_validator("code", "file_path")
     def validate_input_source(cls, v, info):
@@ -55,6 +64,14 @@ class SemgrepInput(BaseModel):
         if v is None and other_value is None:
             raise ValueError("Either code or file_path must be provided")
         
+        return v
+    
+    @field_validator("policy_preference")
+    def validate_policy_preference(cls, v):
+        """Validate policy preference."""
+        valid_preferences = ["local", "registry", "both"]
+        if v not in valid_preferences:
+            raise ValueError(f"Policy preference must be one of: {', '.join(valid_preferences)}")
         return v
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -140,11 +157,16 @@ class SemgrepTool(BaseTool):
         "cpp": [".cpp", ".hpp", ".cc", ".cxx", ".h"]
     }
     
+    # Local policies paths
+    POLICIES_DIR = Path(__file__).resolve().parent / "policies"
+    KNOWLEDGE_DIR = POLICIES_DIR / "knowledge"
+    
     model_config = ConfigDict(arbitrary_types_allowed=True)
     
     async def _run(self, code: Optional[str] = None, file_path: Optional[str] = None, 
                   language: Optional[str] = None, rules: List[str] = None, 
-                  max_timeout: int = 300) -> Dict:
+                  max_timeout: int = 300, use_local_policies: bool = False,
+                  policy_preference: str = "both") -> Dict:
         """
         Run the Semgrep scan on the provided code or file.
         
@@ -154,6 +176,8 @@ class SemgrepTool(BaseTool):
             language: Programming language of the code
             rules: Semgrep rule sets to use
             max_timeout: Maximum execution time in seconds
+            use_local_policies: Whether to use local policies from the policies directory
+            policy_preference: Which policies to use: 'local', 'registry', or 'both'
             
         Returns:
             Dictionary with scan results and findings
@@ -191,11 +215,21 @@ class SemgrepTool(BaseTool):
                 scan_path = temp_dir
                 language = detected_language
             
+            # Get policy configuration
+            policy_config = self._get_policy_config(language, rules, use_local_policies, policy_preference)
+            
             # Run Semgrep scan
-            results = self._run_semgrep(scan_path, language, rules, max_timeout)
+            results = self._run_semgrep(scan_path, language, policy_config, max_timeout)
             
             # Process results to make them more user-friendly
             processed_results = self._process_findings(results)
+            
+            # Add policy configuration used to results
+            processed_results["policy_config"] = {
+                "registry_rules": policy_config.get("registry_rules", []),
+                "local_rules": policy_config.get("local_rules", []),
+                "policy_preference": policy_preference
+            }
             
             return processed_results
             
@@ -238,15 +272,57 @@ class SemgrepTool(BaseTool):
         
         return "unknown"
     
+    def _get_policy_config(self, language: Optional[str], 
+                          rules: List[str],
+                          use_local_policies: bool,
+                          policy_preference: str) -> Dict:
+        """
+        Configure which policies to use based on preferences.
+        
+        Args:
+            language: Programming language of the code
+            rules: Registry rule sets to use
+            use_local_policies: Whether to use local policies
+            policy_preference: Which policies to use ('local', 'registry', or 'both')
+            
+        Returns:
+            Policy configuration dictionary
+        """
+        registry_rules = []
+        local_rules = []
+        
+        # Add registry rules if needed
+        if policy_preference in ["registry", "both"]:
+            registry_rules = rules
+        
+        # Add local rules if needed
+        if (use_local_policies or policy_preference in ["local", "both"]) and language:
+            language_policies_dir = self.KNOWLEDGE_DIR / language
+            
+            if language_policies_dir.exists():
+                # Find all YAML policy files for this language
+                policy_files = list(language_policies_dir.glob("*.yml"))
+                policy_files.extend(language_policies_dir.glob("*.yaml"))
+                
+                # Use absolute paths for local rules
+                local_rules = [str(path.resolve()) for path in policy_files]
+                
+                logger.info(f"Found {len(local_rules)} local policy files for {language}")
+        
+        return {
+            "registry_rules": registry_rules,
+            "local_rules": local_rules
+        }
+    
     def _run_semgrep(self, path: str, language: Optional[str], 
-                    rules: List[str], timeout: int) -> Dict:
+                    policy_config: Dict, timeout: int) -> Dict:
         """
         Run Semgrep on the specified path.
         
         Args:
             path: Path to scan
             language: Optional language specifier
-            rules: Semgrep rule sets to use
+            policy_config: Policy configuration (registry_rules and local_rules)
             timeout: Maximum execution time
             
         Returns:
@@ -257,8 +333,15 @@ class SemgrepTool(BaseTool):
             "semgrep",
             "--json",
             "-q",  # Quiet mode
-            f"--config={','.join(rules)}"
         ]
+        
+        # Add registry rules if any
+        if policy_config.get("registry_rules"):
+            cmd.append(f"--config={','.join(policy_config['registry_rules'])}")
+        
+        # Add local rules if any
+        for local_rule in policy_config.get("local_rules", []):
+            cmd.extend(["--config", local_rule])
         
         # Add language if specified
         if language and language != "unknown":
@@ -266,6 +349,8 @@ class SemgrepTool(BaseTool):
         
         # Add path to scan
         cmd.append(path)
+        
+        logger.info(f"Running Semgrep command: {' '.join(cmd)}")
         
         try:
             # Run with timeout
