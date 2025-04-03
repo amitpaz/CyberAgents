@@ -1,0 +1,66 @@
+tool:
+  name: nmap_port_scanner
+  type: python # Relies on python-nmap wrapper, but fundamentally calls external nmap
+  description: "Performs a port scan using Nmap on specified targets and ports. Returns structured data about open ports, protocols, and services found. Requires Nmap executable to be installed. Use responsibly."
+  version: "0.1.0"
+
+implementation:
+  language: python
+  dependencies:
+    - python-nmap>=0.7.1 # Dependency for the wrapper
+  # Also has an external dependency on the nmap executable
+  code: nmap_port_scan_tool.py
+
+parameters:
+  - name: targets
+    type: string
+    description: "Target IP address, hostname, or network range (e.g., 192.168.1.0/24, scanme.nmap.org)"
+    required: true
+  - name: ports
+    type: string
+    description: "Comma-separated list of ports or port ranges (e.g., '80,443', '1-1024'). Defaults to common ports."
+    required: false
+    default: "21,22,23,25,80,110,135,139,443,445,3389,8080"
+  - name: arguments
+    type: string
+    description: "Additional Nmap arguments (e.g., '-sV -T4'). Ensure arguments are safe and do not include output flags like -oN."
+    required: false
+    default: "-sV -T4" # Default arguments used by the tool
+
+examples:
+  - description: "Scan common ports on scanme.nmap.org"
+    input:
+      targets: "scanme.nmap.org"
+    output: # Example structure, actual results vary
+      scan_arguments: "nmap -sV -T4 -p 21,22,23,25,80,110,135,139,443,445,3389,8080 scanme.nmap.org"
+      hosts:
+        - host: "scanme.nmap.org" # (or resolved IP)
+          status: "up"
+          protocols:
+            tcp:
+              - port: 22
+                state: "open"
+                name: "ssh"
+                product: "OpenSSH"
+                # ... other details
+              - port: 80
+                state: "open"
+                name: "http"
+                # ... other details
+  - description: "Scan specific ports 80 and 443 on 192.168.1.1"
+    input:
+      targets: "192.168.1.1"
+      ports: "80,443"
+    output: # Example structure
+      scan_arguments: "nmap -sV -T4 -p 80,443 192.168.1.1"
+      hosts:
+        - host: "192.168.1.1"
+          status: "up"
+          protocols:
+            tcp:
+              - port: 80
+                state: "open"
+                # ...
+              - port: 443
+                state: "open"
+                # ... 

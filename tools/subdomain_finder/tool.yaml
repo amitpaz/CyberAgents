@@ -1,0 +1,32 @@
+tool:
+  name: subdomain_finder_crtsh
+  type: python # Uses requests, technically interacts with an external web service
+  description: "Finds subdomains for a given domain using Certificate Transparency logs (crt.sh)."
+  version: "0.1.0"
+
+implementation:
+  language: python
+  dependencies:
+    - requests>=2.25.0 # Dependency for making HTTP requests
+  code: subdomain_finder_tool.py
+
+parameters:
+  - name: domain
+    type: string
+    description: "Parent domain name to find subdomains for (e.g., google.com)"
+    required: true
+
+examples:
+  - description: "Find subdomains for google.com using crt.sh"
+    input:
+      domain: "google.com"
+    output: # Example structure, actual results are extensive
+      domain: "google.com"
+      subdomains: 
+        - "accounts.google.com"
+        - "ads.google.com"
+        - "analytics.google.com"
+        - "api.google.com"
+        # ... many more subdomains ...
+        - "www.google.com"
+      source: "crt.sh" 

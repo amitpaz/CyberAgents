@@ -1,13 +1,18 @@
 """Tests for the SubdomainFinderTool, including input validation."""
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
-from tools.subdomain_finder_tool import SubdomainFinderTool, SubdomainInput
+
+from tools import SubdomainFinderTool
+from tools.subdomain_finder.subdomain_finder_tool import SubdomainInput
+
 
 @pytest.fixture
 def subdomain_tool():
     """Fixture to create an instance of the SubdomainFinderTool."""
     return SubdomainFinderTool()
+
 
 def test_tool_initialization(subdomain_tool):
     """Test basic tool attributes."""
@@ -15,23 +20,24 @@ def test_tool_initialization(subdomain_tool):
     assert "crt.sh" in subdomain_tool.description
     assert subdomain_tool.input_schema == SubdomainInput
 
+
 # Mock successful request for valid domain tests
-@patch('requests.get')
+@patch("tools.subdomain_finder.subdomain_finder_tool.requests.get")
 def test_run_valid_domain(mock_get, subdomain_tool):
     """Test running the tool with a valid domain."""
     mock_response = MagicMock()
     # Simulate a minimal valid JSON response from crt.sh
     mock_response.json.return_value = [
-        {"name_value": "test.example.com"}, 
-        {"name_value": "sub.example.com"}
+        {"name_value": "test.example.com"},
+        {"name_value": "sub.example.com"},
     ]
     mock_response.status_code = 200
-    mock_response.text = '[{"name_value": "test.example.com"}]' # Needed for null check
+    mock_response.text = '[{"name_value": "test.example.com"}]'  # Needed for null check
     mock_get.return_value = mock_response
-    
+
     domain = "example.com"
     result = subdomain_tool._run(domain=domain)
-    
+
     assert "error" not in result
     assert result["domain"] == domain
     assert isinstance(result["subdomains"], list)
@@ -39,6 +45,7 @@ def test_run_valid_domain(mock_get, subdomain_tool):
     # Check if the URL construction looks right
     assert domain in mock_get.call_args[0][0]
     assert "output=json" in mock_get.call_args[0][0]
+
 
 # Parameterize tests for various invalid inputs
 @pytest.mark.parametrize(
@@ -57,19 +64,22 @@ def test_run_valid_domain(mock_get, subdomain_tool):
         (".com", "Missing domain part"),
         (None, "None input"),
         (123, "Integer input"),
-    ]
+    ],
 )
 def test_run_invalid_inputs(subdomain_tool, invalid_input, description):
     """Test running the tool with various invalid inputs."""
     result = subdomain_tool._run(domain=invalid_input)
-    
-    print(f"Testing {description}: Input='{invalid_input}', Result='{result}'") # Debugging output
+
+    print(
+        f"Testing {description}: Input='{invalid_input}', Result='{result}'"
+    )  # Debugging output
     assert "error" in result
     assert isinstance(result["error"], str)
     # Check if the error message indicates invalid input
     assert "Invalid domain format" in result["error"]
     # Check if the original invalid input is reflected in the error message (optional but good)
     assert str(invalid_input) in result["error"]
+
 
 # Explicit test for None, although covered by parametrize
 def test_run_none_input(subdomain_tool):
@@ -78,9 +88,10 @@ def test_run_none_input(subdomain_tool):
     assert "error" in result
     assert "Invalid domain format" in result["error"]
 
+
 # Explicit test for empty string, although covered by parametrize
 def test_run_empty_string_input(subdomain_tool):
     """Test running the tool with an empty string as input."""
     result = subdomain_tool._run(domain="")
     assert "error" in result
-    assert "Invalid domain format" in result["error"] 
+    assert "Invalid domain format" in result["error"]

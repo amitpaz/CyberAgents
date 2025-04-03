@@ -31,7 +31,7 @@ properties:
         description: "Detailed description of the tool's purpose and functionality"
       version:
         type: string
-        pattern: "^[0-9]+\.[0-9]+\.[0-9]+$"
+        pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'
         description: "Semantic version of the tool"
 
   implementation:
@@ -94,4 +94,4 @@ properties:
           additionalProperties: true
         output:
           type: object
-          additionalProperties: true 
+          additionalProperties: true

@@ -1,17 +1,23 @@
 """WHOIS lookup tool for domain analysis."""
+
+from typing import Any, ClassVar, Dict, Optional
+
 import whois
 from crewai.tools import BaseTool
-from pydantic import BaseModel, Field, ConfigDict
-from typing import Dict, Any, ClassVar, Optional
+from pydantic import BaseModel, ConfigDict, Field
+
 
 class WhoisInput(BaseModel):
     """Input for WHOIS lookup."""
+
     domain: str = Field(..., description="Domain name to lookup")
+
 
 class WhoisTool(BaseTool):
     """Tool for performing WHOIS lookups."""
+
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    
+
     name: ClassVar[str] = "whois_lookup"
     description: str = "Lookup WHOIS information for a domain"
     input_schema: ClassVar[type] = WhoisInput
@@ -29,11 +35,11 @@ class WhoisTool(BaseTool):
                 "status": w.status,
                 "emails": w.emails,
                 "dnssec": w.dnssec,
-                "updated_date": str(w.updated_date)
+                "updated_date": str(w.updated_date),
             }
         except Exception as e:
             return {"error": str(e)}
 
     async def _arun(self, domain: str) -> Dict[str, Any]:
         """Run WHOIS lookup asynchronously."""
-        return self._run(domain) 
+        return self._run(domain)

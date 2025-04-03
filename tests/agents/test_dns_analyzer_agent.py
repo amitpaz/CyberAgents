@@ -1,7 +1,9 @@
 """Tests for the DNSAnalyzerAgent."""
 
 import pytest
+
 from agents.dns_analyzer_agent.dns_analyzer_agent import DNSAnalyzerAgent
+
 
 def test_dns_analyzer_agent_initialization():
     """Test that the DNSAnalyzerAgent initializes correctly."""
@@ -13,6 +15,9 @@ def test_dns_analyzer_agent_initialization():
     except ValueError as e:
         pytest.fail(f"DNSAnalyzerAgent initialization failed: {e}")
     except Exception as e:
-        pytest.fail(f"An unexpected error occurred during DNSAnalyzerAgent initialization: {e}")
+        pytest.fail(
+            f"An unexpected error occurred during DNSAnalyzerAgent initialization: {e}"
+        )
 
-# Add more specific tests here later 
+
+# Add more specific tests here later
