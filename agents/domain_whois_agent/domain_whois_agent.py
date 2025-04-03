@@ -1,5 +1,6 @@
 """Agent responsible for WHOIS analysis."""
 
+from crewai import Agent
 from tools.whois_tool import WhoisTool
 from utils.llm_utils import create_llm
 from agents.base_agent import BaseAgent

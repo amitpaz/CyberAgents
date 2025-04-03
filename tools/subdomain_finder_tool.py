@@ -5,6 +5,11 @@ from crewai.tools import BaseTool
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Dict, Any, List, ClassVar
 import logging
+import re # Keep re if still needed locally, or remove if not
+import json # Import json
+
+# Import the shared validation function
+from .validation_utils import is_potentially_valid_domain_for_tool
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +27,12 @@ class SubdomainFinderTool(BaseTool):
 
     def _run(self, domain: str) -> Dict[str, Any]:
         """Run subdomain lookup via crt.sh."""
+        # --- Input Validation --- 
+        if not is_potentially_valid_domain_for_tool(domain):
+            logger.error(f"SubdomainFinderTool received invalid domain input: '{domain}'")
+            return {"error": f"Invalid domain format provided: '{domain}'. Please provide a valid domain name."}
+        # --- End Input Validation --- 
+        
         logger.info(f"Searching crt.sh for subdomains of {domain}")
         subdomains = set()
         url = f"https://crt.sh/?q=%.{domain}&output=json"

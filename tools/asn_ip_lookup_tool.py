@@ -5,6 +5,19 @@ from crewai.tools import BaseTool
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Dict, Any, List, Optional, ClassVar
 import logging
+import ipaddress # Import ipaddress for validation
+
+# --- Add validation helper ---
+def is_valid_ip_address(ip_str: str) -> bool:
+    """Checks if the string is a valid IPv4 or IPv6 address."""
+    if not isinstance(ip_str, str) or not ip_str:
+        return False
+    try:
+        ipaddress.ip_address(ip_str)
+        return True
+    except ValueError:
+        return False
+# --- End validation helper ---
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +35,12 @@ class ASNIPLookupTool(BaseTool):
 
     def _run(self, ip_address: str) -> Dict[str, Any]:
         """Run ASN/IP lookup."""
+        # --- Input Validation --- 
+        if not is_valid_ip_address(ip_address):
+            logger.error(f"ASNIPLookupTool received invalid IP address input: '{ip_address}'")
+            return {"error": f"Invalid IP address format provided: '{ip_address}'. Please provide a valid IPv4 or IPv6 address."}
+        # --- End Input Validation --- 
+        
         logger.info(f"Looking up ASN and network info for IP: {ip_address}")
         try:
             obj = IPWhois(ip_address)

@@ -6,6 +6,10 @@ from crewai.tools import BaseTool
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Dict, Any, List, Optional, ClassVar
 import logging
+import re # Keep re if still needed locally, or remove if not
+
+# Import the shared validation function
+from .validation_utils import is_potentially_valid_domain_for_tool
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +59,12 @@ class ShodanHostSearchTool(BaseTool):
 
     def _run(self, domain: str) -> Dict[str, Any]:
         """Run Shodan host search for a domain."""
+        # --- Input Validation --- 
+        if not is_potentially_valid_domain_for_tool(domain):
+            logger.error(f"ShodanHostSearchTool received invalid domain input: '{domain}'")
+            return {"error": f"Invalid domain format provided: '{domain}'. Please provide a valid domain name."}
+        # --- End Input Validation --- 
+        
         if not self._check_api():
             return {"error": "Shodan API key not configured or invalid."}
 
