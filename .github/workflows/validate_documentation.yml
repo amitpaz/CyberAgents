@@ -1,0 +1,27 @@
+name: Validate Documentation
+
+on:
+  push:
+    paths:
+      - "FAME_AND_SHAME.md"
+      - ".github/TEMPLATES/FAME_AND_SHAME_TEMPLATE.md"
+  pull_request:
+    paths:
+      - "FAME_AND_SHAME.md"
+      - ".github/TEMPLATES/FAME_AND_SHAME_TEMPLATE.md"
+  workflow_dispatch:
+
+jobs:
+  validate-fame-shame:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Validate FAME_AND_SHAME.md
+        run: python .github/scripts/validate_fame_shame.py

@@ -23,7 +23,7 @@ if [ -z "$p" ]; then
   # Redirect stdout/stderr to a log file for debugging
   nohup ollama serve > ollama_server.log 2>&1 &
   # Give it a moment to start up
-  sleep 5 
+  sleep 5
   # Check if it started successfully
   p=$(pgrep ollama)
   if [ -z "$p" ]; then
@@ -37,4 +37,4 @@ else
   echo "Ollama server appears to be already running (PID $p)."
 fi
 
-echo "--- Ollama setup complete --- " 
+echo "--- Ollama setup complete --- "
