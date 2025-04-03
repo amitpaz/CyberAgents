@@ -9,7 +9,7 @@ import logging
 # Import necessary components
 from crewai import Agent
 
-from ...tools import WhoisLookupTool
+from tools.whois_lookup.whois_tool import WhoisTool
 from ..base_agent import BaseAgent
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ class DomainWhoisAgent(BaseAgent):
     def __init__(self):
         """Initialize the Domain Registrar Analyst agent."""
         super().__init__()
-        self.whois_tool = WhoisLookupTool()
+        self.whois_tool = WhoisTool()
         self.agent = Agent(
             role="Domain Registrar Analyst",
             goal="Retrieve and structure WHOIS information for a domain.",

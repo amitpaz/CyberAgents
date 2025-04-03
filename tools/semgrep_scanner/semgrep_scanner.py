@@ -14,12 +14,10 @@ import re
 # import shlex # Unused
 import subprocess
 import tempfile
-
-# Remove unused Any, Union
-# from typing import Any, Union
-# import uuid # Unused
 from pathlib import Path
-from typing import ClassVar, Dict, List, Optional, Type, Collection
+
+# Add Any back to the import
+from typing import Any, ClassVar, Dict, List, Optional, Type, Collection
 
 from crewai.tools import BaseTool
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -508,9 +506,11 @@ class SemgrepTool(BaseTool):
             return False
 
     def _parse_semgrep_output(
-        self, output: str, target_path: str
+        self,
+        output: str,
+        target_path: str
     ) -> Dict[str, List[Dict[str, Any]]]:
-        # ...
+        pass # Add pass statement with correct indentation
 
     def _get_policy_config(
         self,
@@ -524,7 +524,7 @@ class SemgrepTool(BaseTool):
         selected_local_policies: List[str] = []
         all_local_policies: Collection[str] = self.local_policies.get(language, [])
         if isinstance(all_local_policies, list):
-             selected_local_policies.extend(all_local_policies)
+            selected_local_policies.extend(all_local_policies)
         # Similar checks if needed for registry_rules
         return {
             "registry_rules": selected_registry_policies,
@@ -545,7 +545,7 @@ class SemgrepTool(BaseTool):
             "-q",
         ]
         if rules:
-            cmd.append(f"--config={",".join(rules)}")
+            cmd.append(f"--config={','.join(rules)}")
         # ...
         cmd.append(target_path)
         # ...
@@ -592,7 +592,8 @@ class SemgrepTool(BaseTool):
             }
             return processed_error_results
         else:
-            processed_results = self._parse_semgrep_output(results, scan_path)
+            # Correct call to the existing processing method
+            processed_results = self._process_findings(results)
             processed_results["scan_metadata"] = metadata
             logger.info(f"Semgrep scan completed for target: {code or repository_url}")
             return processed_results

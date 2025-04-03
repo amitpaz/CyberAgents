@@ -8,16 +8,13 @@ official Semgrep repository to local storage for offline use and customization.
 import datetime
 import json
 import logging
-import os
 import re
 import shutil
 import subprocess
-import sys
 import tempfile
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any, Union
+from typing import Dict, List, Optional, Tuple, Union
 
-import requests
 import yaml
 
 # Set up logging
@@ -478,29 +475,6 @@ def get_policy_name_from_path(policy_path: Path) -> str:
     return policy_path.stem
 
 
-def get_existing_policies(rules_dir: Path) -> Dict[str, Path]:
-    """Get existing policies in the rules directory.
-
-    Args:
-        rules_dir: The directory containing policy files.
-
-    Returns:
-        A dictionary mapping policy names to their file paths.
-    """
-    # ...
-
-
-def fetch_semgrep_rules_from_registry(policy_name: str) -> Optional[Dict]:
-    """Fetch Semgrep rules from the official registry.
-
-    Args:
-        policy_name: The name of the policy to fetch (e.g., 'p/python').
-
-    Returns:
-        The parsed YAML content of the policy, or None if fetch fails.
-    """
-
-
 def fetch_policy_languages(policy_path: Path) -> List[str]:
     """Extract languages from a policy file."""
     language_files: List[str] = []
@@ -531,25 +505,3 @@ def _write_policy_to_file_internal(policy_path: Path, content: Union[Dict, List]
         logger.info(f"Successfully wrote policy to {policy_path}")
     except Exception as e:
         logger.error(f"Error writing policy to {policy_path}: {e}")
-
-
-if __name__ == "__main__":
-    # If run directly, synchronize all policies
-    logging.basicConfig(level=logging.INFO)
-
-    if len(sys.argv) > 1:
-        # Sync specific languages
-        langs = sys.argv[1:]
-        print(f"Synchronizing policies for: {', '.join(langs)}")
-        result = sync_language_policies(langs)
-    else:
-        # Sync all languages
-        print(f"Synchronizing policies for all supported languages")
-        result = sync_all_policies()
-
-    if result["success"]:
-        print(f"Successfully synchronized {result['total_policies']} policies")
-        for lang, count in result["languages"].items():
-            print(f"  - {lang}: {count} policies")
-    else:
-        print(f"Synchronization failed: {result.get('message', 'Unknown error')}")

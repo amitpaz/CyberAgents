@@ -420,16 +420,6 @@ def test_build_arguments(nmap_tool):
     args6 = nmap_tool._build_arguments(None, None)
     assert args6 == ""  # Expect empty string
 
-
-def mock_nmap_process_success():
-    """Return a mock NmapProcess for successful scan."""
-    mock_process = MagicMock()
-    mock_process.summary = "Nmap scan report for test.com (127.0.0.1)"
-    # ... rest of function ...
-
-
-def mock_nmap_process_error():
-    """Return a mock NmapProcess for error scan."""
-    mock_process = MagicMock()
-    mock_process.summary = "Failed to resolve domain test.com"
-    # ... rest of function ...
+    # Test case 7: Full argument construction
+    result = nmap_tool._build_arguments("T4", "-sV -p 22,80 --version-intensity 5")
+    assert result == "-sV -T4 -p 22,80 --version-intensity 5"

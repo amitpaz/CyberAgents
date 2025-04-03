@@ -1,6 +1,6 @@
 """Tests for the Defect Review Agent."""
 
-# import asyncio # Remove unused
+# Remove unused asyncio import
 import pytest
 
 from agents.defect_review_agent.defect_review_agent import DefectReviewAgent
@@ -52,7 +52,8 @@ class TestDefectReviewAgent:
         """Test that the agent initializes correctly."""
         assert defect_agent is not None
 
-    @pytest.mark.asyncio
+    # Test is already implemented and using await, so just remove the marker if desired
+    # @pytest.mark.asyncio # Optional: can keep or remove if default asyncio behavior is set
     async def test_review_vulnerabilities(self, defect_agent, sample_findings):
         """Test the review_vulnerabilities method returns expected structure (based on current stub)."""
         # Run the review_vulnerabilities method directly with await

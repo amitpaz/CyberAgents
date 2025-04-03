@@ -5,14 +5,16 @@ This agent receives security findings from the AppSec Engineer Agent and generat
 concrete recommendations for fixing the identified issues.
 """
 
-import logging
 from typing import Dict, Optional
+from pathlib import Path
+import yaml
 
 from crewai import Agent
 
 from agents.base_agent import BaseAgent
 
-logger = logging.getLogger(__name__)
+# Remove logger definition as logging import is removed
+# logger = logging.getLogger(__name__)
 
 
 class DefectReviewAgent(BaseAgent):
@@ -60,11 +62,24 @@ class DefectReviewAgent(BaseAgent):
             # tools=[] # Define tools if needed
         )
 
-        logger.info("Defect Review Agent initialized")
+        # logger.info("Defect Review Agent initialized") # Remove logger call
 
     def _load_config(self) -> Dict:
         """Load agent configuration from agent.yaml."""
-        return super()._load_config()
+        # Implement config loading similar to other agents
+        try:
+            current_dir = Path(__file__).parent
+            config_path = current_dir / "agent.yaml"
+            with open(config_path, "r") as file:
+                yaml_content = yaml.safe_load(file)
+            # Assume config is under a 'config' key in the YAML
+            return yaml_content.get("config", {})
+        except FileNotFoundError:
+            # logger.error(f"agent.yaml not found for {self.__class__.__name__}")
+            return {} # Return empty config if file not found
+        except Exception as e:
+            # logger.error(f"Error loading config for {self.__class__.__name__}: {e}")
+            return {} # Return empty config on error
 
     async def review_vulnerabilities(
         self, findings: Dict, code: Optional[str] = None
@@ -80,7 +95,7 @@ class DefectReviewAgent(BaseAgent):
             Dictionary with remediation suggestions
         """
         # This is a stub implementation that will be expanded in the future
-        logger.info(f"Received {len(findings.get('findings', []))} findings for review")
+        # logger.info(f"Received {len(findings.get('findings', []))} findings for review") # Remove logger call
 
         remediation_suggestions = []
         for finding in findings.get("findings", []):
@@ -97,6 +112,7 @@ class DefectReviewAgent(BaseAgent):
             remediation_suggestions.append(suggestion)
 
         return {
+            "scan_id": findings.get("scan_id", "unknown_scan_id"),
             "remediation_suggestions": remediation_suggestions,
             "summary": {"total_findings": len(remediation_suggestions)},
         }

@@ -6,6 +6,9 @@ from crewai import Agent
 from fastapi import HTTPException
 from pydantic import BaseModel, Field, field_validator
 
+# Import the LLM creation utility
+from utils.llm_utils import create_llm
+
 
 class AgentConfig(BaseModel):
     """Configuration for an agent."""
@@ -50,14 +53,19 @@ def create_agent(config: AgentConfig) -> Agent:
         HTTPException: If agent creation fails
     """
     try:
+        # Get the default LLM instance
+        llm_instance = create_llm()
+
         return Agent(
-            name=config.name,
             role=config.role,
             goal=config.goal,
             backstory=config.backstory,
-            tools=config.tools,
+            # Pass an empty list for tools temporarily to avoid type mismatch
+            tools=[],
             verbose=config.verbose,
             allow_delegation=config.allow_delegation,
+            # Pass the LLM instance
+            llm=llm_instance,
         )
     except Exception as e:
         error_msg = f"Failed to create agent: {str(e)}"

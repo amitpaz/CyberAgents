@@ -17,16 +17,6 @@ MOCK_CRT_RESPONSE_JSON = [
     {"name_value": "example.com"},  # Base domain, should be filtered
 ]
 
-# Mock crt.sh response data (moved near top)
-MOCK_CRTSH_VALID_JSON = [
-    {"name_value": "test.example.com"},
-    {"name_value": "sub.test.example.com"},
-    {"name_value": "*.wildcard.example.com"},
-    {"name_value": "invalid entry"},  # Should be filtered out by cleaning
-    {"name_value": "dev.example.com\ninternal.example.com"},  # Multi-line
-    {"name_value": "Prod.Example.COM"},  # Case variation
-]
-
 
 @pytest.fixture
 def subdomain_tool():
@@ -241,6 +231,3 @@ def test_is_valid_subdomain(subdomain_tool):
     # Filter None/empty strings
     assert subdomain_tool._is_valid_subdomain(None, base_domain) is False
     assert subdomain_tool._is_valid_subdomain("", base_domain) is False
-
-
-import json

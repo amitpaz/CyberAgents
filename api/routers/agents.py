@@ -8,7 +8,6 @@ from pydantic import BaseModel
 from api.agents.base_agent import AgentConfig, BaseAgent, create_agent
 
 router = APIRouter(
-    prefix="/agents",
     tags=["agents"],
     responses={404: {"description": "Not found"}},
 )
@@ -61,7 +60,7 @@ async def create_new_agent(config: AgentConfig):
     try:
         agent = create_agent(config)
         return AgentResponse(
-            name=agent.name, role=agent.role, goal=agent.goal, status="created"
+            name=config.name, role=agent.role, goal=agent.goal, status="created"
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
