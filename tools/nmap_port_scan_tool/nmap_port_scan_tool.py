@@ -4,7 +4,7 @@ import ipaddress  # For validation
 import logging
 import re  # For validation
 import subprocess
-from typing import Any, ClassVar, Dict, List, Optional
+from typing import Any, ClassVar, Dict, Optional
 
 import nmap
 from crewai.tools import BaseTool

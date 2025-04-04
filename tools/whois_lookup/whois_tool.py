@@ -1,6 +1,6 @@
 """WHOIS lookup tool for domain analysis."""
 
-from typing import Any, ClassVar, Dict, Optional
+from typing import Any, ClassVar, Dict
 
 import whois
 from crewai.tools import BaseTool

@@ -1,6 +1,6 @@
 """Tool for validating SPF and DMARC email security records."""
 
-from typing import Any, ClassVar, Dict, List, Optional
+from typing import Any, ClassVar, Dict
 
 import dns.resolver
 from crewai.tools import BaseTool

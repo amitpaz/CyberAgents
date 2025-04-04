@@ -1,6 +1,6 @@
 """Utility functions for validating tool inputs."""
 
-import ipaddress
+
 import logging
 import re
 
