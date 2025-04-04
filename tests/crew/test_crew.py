@@ -1,10 +1,10 @@
 """Tests for the DomainIntelligenceCrew class."""
 
 # import asyncio # Removed unused import
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
-from crewai import Agent, Crew, Task
+from crewai import Crew
 
 # Assuming agents are initialized correctly elsewhere or mocked
 from agents.security_manager_agent.security_manager_agent import SecurityManagerAgent

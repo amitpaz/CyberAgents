@@ -2,7 +2,7 @@
 
 import ipaddress  # Import ipaddress for validation
 import logging
-from typing import Any, ClassVar, Dict, List, Optional
+from typing import Any, ClassVar, Dict
 
 from crewai.tools import BaseTool
 from ipwhois import IPWhois

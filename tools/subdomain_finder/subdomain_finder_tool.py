@@ -2,8 +2,8 @@
 
 import json  # Import json
 import logging
-import re  # Keep re if still needed locally, or remove if not
-from typing import Any, ClassVar, Dict, List
+
+from typing import Any, ClassVar, Dict
 
 import requests
 from crewai.tools import BaseTool

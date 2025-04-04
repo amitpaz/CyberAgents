@@ -2,8 +2,8 @@
 
 import logging
 import os
-import re  # Keep re if still needed locally, or remove if not
-from typing import Any, ClassVar, Dict, List, Optional
+
+from typing import Any, ClassVar, Dict, Optional
 
 import shodan
 from crewai.tools import BaseTool

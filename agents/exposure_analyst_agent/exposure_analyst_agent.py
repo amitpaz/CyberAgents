@@ -1,7 +1,6 @@
 """Agent responsible for identifying external exposure and attack surface."""
 
 import logging
-import os
 
 from crewai import Agent
 

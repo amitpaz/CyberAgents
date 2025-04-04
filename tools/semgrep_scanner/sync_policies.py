@@ -5,7 +5,7 @@ import argparse
 import logging
 import subprocess
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from typing import List, Tuple, Union
 
 import yaml
 
@@ -26,11 +26,7 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 # Add parent directory to path to allow imports
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from tools.semgrep_scanner.utils import (
-    get_sync_status,
-    sync_all_policies,
-    sync_language_policies,
-)
+# Removed unused imports
 
 
 def parse_arguments() -> argparse.Namespace:
