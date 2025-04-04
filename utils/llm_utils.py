@@ -5,7 +5,13 @@ import json
 import logging
 import os
 
+# Import Union for type hinting
+from typing import Union
+
 import pytest
+
+# Import crewai LLM wrapper
+from crewai import LLM
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 
@@ -18,11 +24,24 @@ load_dotenv()
 
 # --- Configuration ---
 DEFAULT_OPENAI_MODEL = os.environ.get("OPENAI_MODEL_NAME", "gpt-4o")
-DEFAULT_OLLAMA_MODEL = "phi:latest"  # Specify a default local model
-OLLAMA_BASE_URL = "http://localhost:11434/v1"  # Default Ollama endpoint
+DEFAULT_OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "phi:latest")  # Read from env
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
 
-# Determine if running in local LLM mode
-USE_LOCAL_LLM = os.getenv("USE_LOCAL_LLM", "false").lower() == "true"
+# New Cerebras config
+DEFAULT_CEREBRAS_MODEL = os.environ.get(
+    "CEREBRAS_MODEL_NAME", "llama-3.3-70b"
+)  # Base model name
+CEREBRAS_API_BASE_VAR = os.getenv("CEREBRAS_API_BASE")
+CEREBRAS_API_KEY_VAR = os.getenv("CEREBRAS_API_KEY")
+CEREBRAS_STREAMING_VAR = os.getenv("CEREBRAS_STREAMING", "false").lower() == "true"
+CEREBRAS_MAX_TOKENS_VAR = os.getenv("CEREBRAS_MAX_TOKENS")
+
+# Determine LLM mode based on env vars (Priority: Cerebras > Ollama > OpenAI)
+USE_CEREBRAS_LLM = os.getenv("USE_CEREBRAS_LLM", "false").lower() == "true"
+USE_LOCAL_LLM = (
+    os.getenv("USE_LOCAL_LLM", "false").lower() == "true" and not USE_CEREBRAS_LLM
+)
+
 # --- End Configuration ---
 
 
@@ -86,58 +105,115 @@ class CustomChatOpenAI(ChatOpenAI):
         return super()._generate(messages, stop, run_manager, **kwargs)
 
 
-def create_llm() -> CustomChatOpenAI:
-    """Creates a ChatOpenAI instance, configured for OpenAI or a local Ollama instance based on USE_LOCAL_LLM env var."""
+# Update return type hint
+def create_llm() -> Union[CustomChatOpenAI, LLM]:
+    """Creates an LLM instance (ChatOpenAI or crewai.LLM) based on environment variables."""
 
-    model_name: str
-    api_key: str
-    base_url: str | None = None
-    temperature: float = 0.7  # Default temperature
+    # Read optional params just once
+    streaming = CEREBRAS_STREAMING_VAR  # Assuming same flag name for simplicity
+    max_tokens: int | None = None
+    if CEREBRAS_MAX_TOKENS_VAR:
+        try:
+            max_tokens = int(CEREBRAS_MAX_TOKENS_VAR)
+        except (ValueError, TypeError):
+            logger.warning(
+                f"Invalid MAX_TOKENS value '{CEREBRAS_MAX_TOKENS_VAR}'. Ignoring."
+            )
 
-    if USE_LOCAL_LLM:
-        logger.info(f"--- Using local LLM via Ollama --- ")
-        # Use Ollama configuration
-        base_url = os.getenv("OLLAMA_BASE_URL", OLLAMA_BASE_URL)
-        model_name = os.getenv("OLLAMA_MODEL", DEFAULT_OLLAMA_MODEL)
-        api_key = "ollama"  # Ollama doesn't require a key
-        # Temperature can be kept or adjusted for local models
-        temperature = 0.7
-        logger.info(f"Model: {model_name}, Base URL: {base_url}")
-
-    else:
-        logger.info(f"--- Using remote OpenAI LLM --- ")
-        # Use standard OpenAI configuration
-        model_name = os.getenv("OPENAI_MODEL_NAME", DEFAULT_OPENAI_MODEL)
-        api_key = os.getenv("OPENAI_API_KEY")
-        base_url = os.getenv("OPENAI_API_BASE")  # Respect if user wants to proxy OpenAI
-        temperature = 0.7
+    # --- Provider Logic ---
+    if USE_CEREBRAS_LLM:
+        logger.info("--- Configuring Cerebras LLM --- ")
+        api_key = CEREBRAS_API_KEY_VAR
+        api_base = CEREBRAS_API_BASE_VAR
+        # Use the exact model name from LiteLLM docs examples
+        base_model_name = os.getenv("CEREBRAS_MODEL_NAME", "llama3-70b-instruct")
+        provider_prefixed_model_name = f"cerebras/{base_model_name}"  # Prefix for CrewAI/LiteLLM provider selection
 
         if not api_key:
-            # Use pytest.skip in tests, raise error otherwise
+            raise ValueError(
+                "CEREBRAS_API_KEY environment variable is required when USE_CEREBRAS_LLM is true"
+            )
+        if not api_base:  # Base URL is usually needed for non-standard providers
+            raise ValueError(
+                "CEREBRAS_API_BASE environment variable is required when USE_CEREBRAS_LLM is true"
+            )
+
+        logger.info(
+            f"Using Provider Model: {provider_prefixed_model_name}, Base URL: {api_base}"
+        )
+
+        # Prepare kwargs for crewai.LLM
+        llm_config = {
+            # Tell LiteLLM which model name to send IN THE API request body
+            "model_name": base_model_name,
+            # Explicitly pass api_key and base_url
+            "api_key": api_key,
+            "base_url": api_base,
+            "temperature": 0.7,  # Example/Default value
+        }
+        if streaming:  # Use env var CEREBRAS_STREAMING_VAR
+            llm_config["stream"] = True
+        if max_tokens is not None:
+            llm_config["max_tokens"] = max_tokens
+
+        # Instantiate crewai.LLM for Cerebras
+        # Pass the PROVIDER-PREFIXED model name here for provider selection
+        return LLM(model=provider_prefixed_model_name, config=llm_config)
+
+    elif USE_LOCAL_LLM:
+        logger.info("--- Configuring local LLM via Ollama --- ")
+        base_url = os.getenv("OLLAMA_BASE_URL", OLLAMA_BASE_URL)
+        base_model_name = os.getenv("OLLAMA_MODEL", DEFAULT_OLLAMA_MODEL)
+        model_name = f"ollama/{base_model_name}"  # Prefix for CrewAI/LiteLLM
+
+        logger.info(f"Using Model: {model_name}, Base URL: {base_url}")
+
+        # Prepare kwargs for crewai.LLM
+        llm_config = {
+            "base_url": base_url,  # Ollama usually needs base_url specified
+            "temperature": 0.7,  # Example value
+        }
+        # Add optional params if needed for Ollama
+        # if streaming: llm_config["stream"] = True
+        # if max_tokens is not None: llm_config["max_tokens"] = max_tokens
+
+        # Instantiate crewai.LLM for Ollama
+        return LLM(model=model_name, config=llm_config)
+
+    else:  # Default to OpenAI
+        logger.info("--- Configuring remote OpenAI LLM --- ")
+        model_name = os.getenv("OPENAI_MODEL_NAME", DEFAULT_OPENAI_MODEL)
+        api_key = os.getenv("OPENAI_API_KEY")
+        api_base = os.getenv("OPENAI_API_BASE")
+        temperature = 0.7
+
+        if not api_key or api_key == "dummy-key-for-validation":
             try:
-                pytest.skip("OPENAI_API_KEY not set for remote LLM usage")
+                pytest.skip("OPENAI_API_KEY not set or is dummy for remote LLM usage")
             except NameError:
                 raise ValueError(
-                    "OPENAI_API_KEY environment variable is not set and is required when not using local LLM"
+                    "OPENAI_API_KEY environment variable is not set or is dummy, and is required when not using Ollama or Cerebras"
                 )
-        logger.info(f"Model: {model_name}, Base URL: {base_url or 'Default OpenAI'}")
-
-    # Instantiate using the determined parameters
-    # Check if the selected model is 'o3-mini' to apply custom logic
-    if model_name == "o3-mini":
-        logger.info("Applying custom configuration for o3-mini (no temperature).")
-        llm = CustomChatOpenAI(
-            model=model_name,
-            openai_api_key=api_key,
-            openai_api_base=base_url,  # Pass base_url whether local or remote
-            # Temperature is omitted by the CustomChatOpenAI class for o3-mini
-        )
-    else:
-        llm = CustomChatOpenAI(
-            model=model_name,
-            temperature=temperature,
-            openai_api_key=api_key,
-            openai_api_base=base_url,  # Pass base_url whether local or remote
+        logger.info(
+            f"Using Model: {model_name}, Base URL: {api_base or 'Default OpenAI'}"
         )
 
-    return llm
+        # Prepare kwargs for ChatOpenAI
+        llm_kwargs = {
+            "model": model_name,
+            "temperature": temperature,
+            "openai_api_key": api_key,
+            "openai_api_base": api_base,
+        }
+        # Add optional streaming/max_tokens if needed
+        # if streaming: llm_kwargs["streaming"] = True
+        # if max_tokens is not None: llm_kwargs["max_tokens"] = max_tokens
+
+        # Instantiate ChatOpenAI (or CustomChatOpenAI for specific models)
+        if model_name == "o3-mini":
+            logger.info("Applying custom configuration for o3-mini (no temperature).")
+            if "temperature" in llm_kwargs:
+                del llm_kwargs["temperature"]
+            return CustomChatOpenAI(**llm_kwargs)
+        else:
+            return CustomChatOpenAI(**llm_kwargs)

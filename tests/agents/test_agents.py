@@ -15,6 +15,7 @@ client = TestClient(app)
 # Assume sample_agent_config fixture exists and provides a Pydantic model
 # If not, we need to define a sample config dict here or in the test.
 
+
 # Remove skip markers and implement tests
 def test_create_agent_with_valid_config(sample_agent_config):
     """Test creating an agent with valid configuration."""
@@ -22,15 +23,17 @@ def test_create_agent_with_valid_config(sample_agent_config):
     response = client.post("/api/v1/agents/", json=sample_agent_config.model_dump())
     assert response.status_code == 200
     # Add assertions about the response body if needed, e.g., checking ID or name
-    assert "name" in response.json() # Assuming AgentResponse has name
+    assert "name" in response.json()  # Assuming AgentResponse has name
     assert response.json()["name"] == sample_agent_config.name
+
 
 def test_create_agent_with_missing_required_fields():
     """Test creating an agent with missing required fields."""
-    invalid_config = {"name": "Test Agent"} # Missing role, goal, backstory
+    invalid_config = {"name": "Test Agent"}  # Missing role, goal, backstory
     # Use the correct API endpoint prefix
     response = client.post("/api/v1/agents/", json=invalid_config)
-    assert response.status_code == 422 # Expect validation error
+    assert response.status_code == 422  # Expect validation error
+
 
 def test_create_agent_with_invalid_tools():
     """Test creating an agent with invalid tools format."""
@@ -43,7 +46,8 @@ def test_create_agent_with_invalid_tools():
     }
     # Use the correct API endpoint prefix
     response = client.post("/api/v1/agents/", json=invalid_config)
-    assert response.status_code == 422 # Expect validation error
+    assert response.status_code == 422  # Expect validation error
+
 
 def test_list_agents_empty():
     """Test listing agents when no agents exist (assuming clean state)."""
@@ -52,7 +56,7 @@ def test_list_agents_empty():
     response = client.get("/api/v1/agents/")
     assert response.status_code == 200
     # Check if the response is an empty list or structure indicating no agents
-    assert response.json() == [] # Or potentially { "agents": [] }
+    assert response.json() == []  # Or potentially { "agents": [] }
 
 
 # Keep this validation test as it tests the model directly

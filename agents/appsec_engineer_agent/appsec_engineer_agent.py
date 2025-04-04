@@ -180,7 +180,7 @@ class SemgrepRunner:
         if self.rules:
             cmd.append(f"--config={self._prepare_rules_arg()}")
         else:
-            cmd.append("--config=auto") # Use auto configuration if no rules specified
+            cmd.append("--config=auto")  # Use auto configuration if no rules specified
 
         # Add language if specified
         if language and language != "unknown":

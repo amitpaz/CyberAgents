@@ -17,7 +17,7 @@ import tempfile
 from pathlib import Path
 
 # Add Any back to the import
-from typing import Any, ClassVar, Dict, List, Optional, Type, Collection
+from typing import Any, ClassVar, Collection, Dict, List, Optional, Type
 
 from crewai.tools import BaseTool
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -506,11 +506,9 @@ class SemgrepTool(BaseTool):
             return False
 
     def _parse_semgrep_output(
-        self,
-        output: str,
-        target_path: str
+        self, output: str, target_path: str
     ) -> Dict[str, List[Dict[str, Any]]]:
-        pass # Add pass statement with correct indentation
+        pass  # Add pass statement with correct indentation
 
     def _get_policy_config(
         self,
@@ -566,7 +564,9 @@ class SemgrepTool(BaseTool):
         )
         # Ensure policy_config_dict["registry_rules/local_rules"] are List[str]
         # before passing to _run_semgrep
-        run_rules = policy_config_dict.get("registry_rules", []) + policy_config_dict.get("local_rules", [])
+        run_rules = policy_config_dict.get(
+            "registry_rules", []
+        ) + policy_config_dict.get("local_rules", [])
 
         # Ensure scan_path is not None before passing
         scan_path: Optional[str] = None
@@ -587,8 +587,14 @@ class SemgrepTool(BaseTool):
             processed_error_results = {
                 "error": results["error"],
                 "findings": [],
-                "severity_summary": {"critical": 0, "high": 0, "medium": 0, "low": 0, "info": 0},
-                "scan_metadata": metadata
+                "severity_summary": {
+                    "critical": 0,
+                    "high": 0,
+                    "medium": 0,
+                    "low": 0,
+                    "info": 0,
+                },
+                "scan_metadata": metadata,
             }
             return processed_error_results
         else:

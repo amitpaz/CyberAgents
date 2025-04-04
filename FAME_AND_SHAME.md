@@ -30,10 +30,10 @@ These packages are well-maintained and allow us to use their latest versions wit
 | `pytest-asyncio` | `0.26.0` | Successfully upgraded 🤩 |
 | `opentelemetry-api` | `1.31.1` | Successfully upgraded 🤩 |
 | `opentelemetry-sdk` | `1.31.1` | Successfully upgraded 🤩 |
-| `opentelemetry-instrumentation` | `0.52b1` | Successfully upgraded 🤩 |
-| `protobuf` | `5.29.4` | Successfully upgraded 🤩 |
-| `pytest` | `8.0.0` | Already using recent version 🤩 |
-| `pytest-mock` | `3.12.0` | Already using recent version 🤩 |
+| `opentelemetry-instrumentation` | `0.52b1` | Successfully upgraded �� |
+| `protobuf` | `6.30.2` | Successfully upgraded 🤩 |
+| `pytest` | `8.3.5` | Already using recent version 🤩 |
+| `pytest-mock` | `3.14.0` | Already using recent version 🤩 |
 | `black` | `25.1.0` | Already using recent version 🤩 |
 | `flake8` | `7.0.0` | Already using recent version 🤩 |
 | `mypy` | `1.8.0` | Already using recent version 🤩 |
@@ -42,6 +42,12 @@ These packages are well-maintained and allow us to use their latest versions wit
 | `jsonschema` | `4.21.1` | Already using recent version 🤩 |
 | `dnspython` | `2.4.2` | Already using recent version 🤩 |
 | `requests` | `2.31.0` | Already using recent version 🤩 |
+| `typing-extensions` | `4.13.1` | Successfully upgraded 🤩 |
+| `pydantic-core` | `2.33.1` | Successfully upgraded 🤩 |
+| `pydantic` | `2.11.2` | Successfully upgraded 🤩 |
+| `multidict` | `6.3.2` | Successfully upgraded 🤩 |
+| `importlib-metadata` | `8.6.1` | Successfully upgraded 🤩 |
+| `json5` | `0.12.0` | Successfully upgraded 🤩 |
 
 ## Special Mentions
 
@@ -60,15 +66,16 @@ This document (FAME_AND_SHAME.md) should be updated every time dependency upgrad
    - Specific version constraints causing the issue
    - Shame level (🧐 for minor annoyances, 🧐🧐 for significant blockers)
 
-2. **Successfully upgraded packages** - When a package is successfully upgraded, add or update it in the Champions section with:
+1. **Successfully upgraded packages** - When a package is successfully upgraded, add or update it in the Champions section with:
 
    - Package name
    - New version number
    - Status (either "Successfully upgraded 🤩" or "Already using recent version 🤩")
 
-3. **Packages that became unblocked** - If a package previously in the Blockers section is resolved (either by the blocking package relaxing its requirements or by upgrading the entire dependency chain), move it to the Champions section.
+1. **Packages that became unblocked** - If a package previously in the Blockers section is resolved (either by the blocking package relaxing its requirements or by upgrading the entire dependency chain), move it to the Champions section.
 
-4. **Template validation** - After making any changes, run the validation script to ensure the document follows the standardized format:
+1. **Template validation** - After making any changes, run the validation script to ensure the document follows the standardized format:
+
    ```bash
    python .github/scripts/validate_fame_shame.py
    ```
@@ -77,11 +84,11 @@ This document (FAME_AND_SHAME.md) should be updated every time dependency upgrad
 
 Before committing changes to FAME_AND_SHAME.md, verify:
 
-- [ ] All table headers match the template exactly
-- [ ] Package names are enclosed in backticks
-- [ ] Version numbers follow semantic versioning format
-- [ ] Status entries end with appropriate emoji
-- [ ] Shame levels use only the defined emoji set (🧐 or 🧐🧐)
-- [ ] Numbered list in maintenance guide uses correct sequential numbering
+- \[ \] All table headers match the template exactly
+- \[ \] Package names are enclosed in backticks
+- \[ \] Version numbers follow semantic versioning format
+- \[ \] Status entries end with appropriate emoji
+- \[ \] Shame levels use only the defined emoji set (🧐 or 🧐🧐)
+- \[ \] Numbered list in maintenance guide uses correct sequential numbering
 
 This document serves as both documentation and motivation to keep dependencies up to date.

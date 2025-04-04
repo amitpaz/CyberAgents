@@ -58,9 +58,9 @@ def main() -> None:
     args = parse_arguments()
     # Assuming args provides config_path, rules_dir, force_update directly
     # If not, parse_arguments needs adjustment or defaults used here
-    config_path_arg = getattr(args, 'config', "semgrep-config.yml")
-    rules_dir_arg = getattr(args, 'rules_dir', DEFAULT_SEMGREP_RULES_DIR)
-    force_update_arg = getattr(args, 'force', False)
+    config_path_arg = getattr(args, "config", "semgrep-config.yml")
+    rules_dir_arg = getattr(args, "rules_dir", DEFAULT_SEMGREP_RULES_DIR)
+    force_update_arg = getattr(args, "force", False)
 
     sync_policies(
         config_path=config_path_arg,

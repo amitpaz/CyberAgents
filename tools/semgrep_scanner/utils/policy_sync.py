@@ -486,7 +486,9 @@ def fetch_policy_languages(policy_path: Path) -> List[str]:
                     if isinstance(rule, dict) and "languages" in rule:
                         langs = rule["languages"]
                         if isinstance(langs, list):
-                            language_files.extend(lang for lang in langs if isinstance(lang, str))
+                            language_files.extend(
+                                lang for lang in langs if isinstance(lang, str)
+                            )
     except Exception as e:
         logger.error(f"Error reading languages from {policy_path}: {e}")
     return list(set(language_files))

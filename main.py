@@ -221,7 +221,8 @@ class DomainIntelligenceCrew:
             tasks=[],
             verbose=self.verbose_mode,
             memory=True,
-            # manager_llm=self.manager_agent.agent.llm # Example: Ensure manager uses its own LLM if needed
+            # Set the manager LLM explicitly
+            manager_llm=self.manager_agent.agent.llm,
         )
 
     def run_analysis(self, user_prompt: str, output_format: str = "rich") -> Dict:
@@ -260,6 +261,10 @@ class DomainIntelligenceCrew:
             )
 
             try:
+                # Ensure manager agent exists before creating task
+                if not self.manager_agent or not self.manager_agent.agent:
+                    raise ValueError("Manager agent is not properly initialized.")
+
                 manager_task = Task(
                     description=manager_task_description,
                     agent=self.manager_agent.agent,

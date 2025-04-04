@@ -74,7 +74,9 @@ def test_input_handling_sql_injection(security_crew):
     prompt = f"Analyze domain {sql_injection}"
     results = security_crew.run_analysis(prompt)
     # Assert that analysis completed without error
-    assert "error" not in results, f"Analysis failed unexpectedly: {results.get('error')}"
+    assert (
+        "error" not in results
+    ), f"Analysis failed unexpectedly: {results.get('error')}"
     assert "analysis_report" in results
 
 
@@ -85,7 +87,9 @@ def test_input_handling_command_injection(security_crew):
     prompt = f"Analyze domain {cmd_injection}"
     results = security_crew.run_analysis(prompt)
     # Assert that analysis completed without error
-    assert "error" not in results, f"Analysis failed unexpectedly: {results.get('error')}"
+    assert (
+        "error" not in results
+    ), f"Analysis failed unexpectedly: {results.get('error')}"
     assert "analysis_report" in results
 
 
@@ -96,7 +100,9 @@ def test_input_handling_xss(security_crew):
     prompt = f"Analyze domain {xss_attempt}"
     results = security_crew.run_analysis(prompt)
     # Assert that analysis completed without error
-    assert "error" not in results, f"Analysis failed unexpectedly: {results.get('error')}"
+    assert (
+        "error" not in results
+    ), f"Analysis failed unexpectedly: {results.get('error')}"
     assert "analysis_report" in results
 
 
@@ -107,7 +113,9 @@ def test_input_handling_path_traversal(security_crew):
     prompt = f"Analyze domain {path_traversal}"
     results = security_crew.run_analysis(prompt)
     # Assert that analysis completed without error
-    assert "error" not in results, f"Analysis failed unexpectedly: {results.get('error')}"
+    assert (
+        "error" not in results
+    ), f"Analysis failed unexpectedly: {results.get('error')}"
     assert "analysis_report" in results
 
 
@@ -133,7 +141,9 @@ def test_input_handling_dos_pattern(security_crew):
     results = security_crew.run_analysis(prompt)
     # Assert that analysis completed without error (or specific DoS handling error if implemented)
     # For now, assume it completes or fails gracefully within run_analysis
-    assert "error" not in results, f"Analysis failed unexpectedly: {results.get('error')}"
+    assert (
+        "error" not in results
+    ), f"Analysis failed unexpectedly: {results.get('error')}"
     # assert "analysis_report" in results # Report might not be generated if DoS is severe
 
 
@@ -144,13 +154,17 @@ def test_input_handling_sensitive_data(security_crew):
     prompt = f"Analyze domain {sensitive_domain}"
     results = security_crew.run_analysis(prompt)
     # Assert that analysis completed without error
-    assert "error" not in results, f"Analysis failed unexpectedly: {results.get('error')}"
+    assert (
+        "error" not in results
+    ), f"Analysis failed unexpectedly: {results.get('error')}"
     assert "analysis_report" in results
 
 
 # Rate limiting needs to be implemented externally or within tools.
 # This test is less meaningful against run_analysis directly.
-@pytest.mark.skip(reason="Rate limiting tests belong at API or tool level, not direct crew call")
+@pytest.mark.skip(
+    reason="Rate limiting tests belong at API or tool level, not direct crew call"
+)
 def test_rate_limiting(security_crew):
     """Test rate limiting protection (SKIPPED - Belongs at API/Tool level)."""
     prompts = [f"Analyze test{i}.com" for i in range(5)]
@@ -172,7 +186,9 @@ def test_input_handling_memory_exhaustion(security_crew):
     results = security_crew.run_analysis(prompt)
     # Assert that analysis completed without error (or specific memory error)
     # For now, assume it completes or fails gracefully within run_analysis
-    assert "error" not in results, f"Analysis failed unexpectedly: {results.get('error')}"
+    assert (
+        "error" not in results
+    ), f"Analysis failed unexpectedly: {results.get('error')}"
     # assert "analysis_report" in results # Report might not be generated if memory issue is severe
 
 

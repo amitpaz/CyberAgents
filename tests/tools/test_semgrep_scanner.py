@@ -300,7 +300,7 @@ def test_metadata_parsing():
     # Call the processing method (assuming it exists and is named _process_findings)
     # This method needs to exist on the SemgrepTool or wherever processing happens.
     # If _process_findings is not the correct method, this needs adjustment.
-    if hasattr(tool, "_process_findings"): # Check if the method exists
+    if hasattr(tool, "_process_findings"):  # Check if the method exists
         processed = tool._process_findings(raw_results_with_meta)
 
         assert "findings" in processed
@@ -323,7 +323,9 @@ def test_metadata_parsing():
         # Ensure metadata field is absent or empty/default
         assert "metadata" not in finding2 or not finding2["metadata"]
     else:
-        pytest.skip("Skipping metadata test: _process_findings method not found on SemgrepTool")
+        pytest.skip(
+            "Skipping metadata test: _process_findings method not found on SemgrepTool"
+        )
 
 
 # Remove unused helper functions

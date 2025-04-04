@@ -7,7 +7,7 @@ import os
 from typing import Any, Dict, Optional
 
 import pytest
-from crewai import Agent, Crew, Task, Process
+from crewai import Agent, Crew, Process, Task
 from dotenv import load_dotenv
 from langchain.schema import messages_from_dict, messages_to_dict
 from langchain_openai import ChatOpenAI
@@ -266,7 +266,7 @@ async def test_dns_agent_task():
         manager_agent_wrapper = SecurityManagerAgent()
     except Exception as e:
         pytest.fail(f"Failed to initialize agents for test_dns_agent_task: {e}")
-    
+
     # Skip test if agents failed initialization (though fail above is more likely)
     # Redundant check, kept for parallel structure if needed
     # if not dns_agent_wrapper or not manager_agent_wrapper:
@@ -290,7 +290,7 @@ async def test_dns_agent_task():
     assert result is not None
     # Check the raw output string representation for expected content
     assert isinstance(result.raw, str)
-    assert "142.251." in result.raw # Check for part of expected IP
+    assert "142.251." in result.raw  # Check for part of expected IP
 
 
 if __name__ == "__main__":
