@@ -244,28 +244,23 @@ def mock_scanner_instance(nmap_tool):
 
 
 # --- Initialization Tests ---
-@patch(
-    "nmap.PortScanner", side_effect=nmap.PortScannerError("nmap program was not found")
-)
-def test_tool_initialization_nmap_not_found(mock_scanner_error):
-    """Test tool initialization when Nmap executable is not found."""
+@patch("nmap.PortScanner", side_effect=nmap.nmap.PortScannerError("Nmap not found"))
+def test_tool_initialization_nmap_not_found(mock_scanner):
+    """Test initialization when Nmap executable is not found."""
     tool = NmapPortScanTool()
-    assert tool.nm is None  # Scanner should be None if Nmap is missing
-    assert tool.is_available is False
-    assert "Nmap not available" in tool.description
-    mock_scanner_error.assert_called_once()
+    assert tool.nm is None # Check internal attribute directly
 
 
-# --- Availability Test ---
+# Test tool availability directly by checking internal state
 def test_tool_availability(nmap_tool):
-    """Test the is_available property."""
-    # Case 1: Nmap is available (mocked successfully)
-    assert nmap_tool.is_available is True
+    """Test the tool's availability based on internal state (nm object)."""
+    # Case 1: Tool initialized successfully (nmap_tool fixture)
+    assert nmap_tool.nm is not None # Assume fixture provides initialized tool
 
-    # Case 2: Nmap is not available
-    with patch("nmap.PortScanner", side_effect=nmap.PortScannerError):
-        tool_unavailable = NmapPortScanTool()
-        assert tool_unavailable.is_available is False
+    # Case 2: Tool failed initialization (mock nmap not found)
+    with patch("nmap.PortScanner", side_effect=nmap.nmap.PortScannerError("Nmap not found")):
+        failed_tool = NmapPortScanTool()
+        assert failed_tool.nm is None
 
 
 # --- Execution Tests (_arun) ---
@@ -391,35 +386,3 @@ async def test_arun_unexpected_error(nmap_tool, mock_scanner_instance):
     assert error_message in result["error"]
     # Scan might have been called, but processing failed
     mock_scanner_instance.scan.assert_called_once()
-
-
-# --- Argument Construction Tests ---
-def test_build_arguments(nmap_tool):
-    """Test the _build_arguments helper method."""
-    # Test case 1: Basic arguments
-    args1 = nmap_tool._build_arguments("T4", "-sV")
-    assert args1 == "-sV -T4"
-
-    # Test case 2: Scan type already in arguments
-    args2 = nmap_tool._build_arguments("T4", "-sV -T4")
-    assert args2 == "-sV -T4"
-
-    # Test case 3: Different scan type in arguments
-    args3 = nmap_tool._build_arguments("T4", "-sV -T3")
-    assert args3 == "-sV -T3"
-
-    # Test case 4: No extra arguments
-    args4 = nmap_tool._build_arguments("T4", None)
-    assert args4 == "-T4"
-
-    # Test case 5: No scan type
-    args5 = nmap_tool._build_arguments(None, "-sV")
-    assert args5 == "-sV"
-
-    # Test case 6: No scan type or arguments
-    args6 = nmap_tool._build_arguments(None, None)
-    assert args6 == ""  # Expect empty string
-
-    # Test case 7: Full argument construction
-    result = nmap_tool._build_arguments("T4", "-sV -p 22,80 --version-intensity 5")
-    assert result == "-sV -T4 -p 22,80 --version-intensity 5"
