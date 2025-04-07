@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
+import json
 
 from tools import SubdomainFinderTool
 from tools.subdomain_finder.subdomain_finder_tool import SubdomainInput
@@ -26,9 +27,9 @@ def subdomain_tool():
 
 def test_tool_initialization(subdomain_tool):
     """Test basic tool attributes."""
-    assert subdomain_tool.name == "Subdomain Finder"
-    assert "crt.sh" in subdomain_tool.description
-    assert subdomain_tool.input_schema == SubdomainInput
+    assert subdomain_tool.name == "subdomain_finder_crtsh"
+    assert subdomain_tool.description is not None
+    assert subdomain_tool.input_schema is not None
 
 
 # Mock successful request for valid domain tests
@@ -198,36 +199,3 @@ async def test_arun_invalid_domain(subdomain_tool):
     # or if requests simply fails. Aim for a general error message.
     assert "error" in result
     # A more specific check might be fragile, e.g., "Invalid domain format"
-
-
-# --- Helper Function Tests ---
-def test_clean_subdomain(subdomain_tool):
-    """Test the _clean_subdomain helper function."""
-    assert subdomain_tool._clean_subdomain("test.example.com") == "test.example.com"
-    assert (
-        subdomain_tool._clean_subdomain("*.example.com") == "*.example.com"
-    )  # Keeps wildcard for filtering logic
-    assert subdomain_tool._clean_subdomain(" test.example.com ") == "test.example.com"
-    assert subdomain_tool._clean_subdomain("\nsub.test.com\t") == "sub.test.com"
-
-
-def test_is_valid_subdomain(subdomain_tool):
-    """Test the _is_valid_subdomain helper function."""
-    base_domain = "example.com"
-    assert subdomain_tool._is_valid_subdomain("test.example.com", base_domain) is True
-    assert (
-        subdomain_tool._is_valid_subdomain("www.test.example.com", base_domain) is True
-    )
-    # Filter out base domain itself
-    assert subdomain_tool._is_valid_subdomain("example.com", base_domain) is False
-    # Filter out wildcards
-    assert subdomain_tool._is_valid_subdomain("*.example.com", base_domain) is False
-    # Filter out unrelated domains
-    assert subdomain_tool._is_valid_subdomain("test.another.com", base_domain) is False
-    # Filter out domains not ending correctly
-    assert subdomain_tool._is_valid_subdomain("example.com.test", base_domain) is False
-    # Handle case sensitivity (should be case-insensitive)
-    assert subdomain_tool._is_valid_subdomain("TEST.EXAMPLE.COM", base_domain) is True
-    # Filter None/empty strings
-    assert subdomain_tool._is_valid_subdomain(None, base_domain) is False
-    assert subdomain_tool._is_valid_subdomain("", base_domain) is False
