@@ -69,7 +69,7 @@ def test_run_analysis_failure(mock_kickoff, domain_crew):
     target_domain = "example.com"
     # Call run_analysis and expect it to return an error dictionary
     result = domain_crew.run_analysis(target_domain)
-    
+
     # Assert that an error was returned and contains the expected message
     assert "error" in result
     assert "Crew failed" in result["error"]

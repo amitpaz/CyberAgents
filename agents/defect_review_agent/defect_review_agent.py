@@ -76,10 +76,10 @@ class DefectReviewAgent(BaseAgent):
             return yaml_content.get("config", {})
         except FileNotFoundError:
             # logger.error(f"agent.yaml not found for {self.__class__.__name__}")
-            return {} # Return empty config if file not found
+            return {}  # Return empty config if file not found
         except Exception as e:
             # logger.error(f"Error loading config for {self.__class__.__name__}: {e}")
-            return {} # Return empty config on error
+            return {}  # Return empty config on error
 
     async def review_vulnerabilities(
         self, findings: Dict, code: Optional[str] = None

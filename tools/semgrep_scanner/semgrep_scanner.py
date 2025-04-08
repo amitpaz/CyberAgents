@@ -5,51 +5,59 @@ This tool allows scanning code snippets or files for security vulnerabilities
 using Semgrep, a static analysis engine for finding bugs and enforcing code standards.
 """
 
+import importlib
+import os
+
 # --- Start: Add project root to sys.path for direct execution ---
 import sys
-import os
-import importlib
 
 # Calculate the path to the project root (two levels up from this file's directory)
-_project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+_project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 # Add the project root to the Python path if it's not already there
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 # --- End: Add project root to sys.path ---
 
+
 # --- Start: Dynamic import for RateLimiter ---
 # Define a function to dynamically import RateLimiter
 def import_rate_limiter():
     """Dynamically import RateLimiter by trying multiple possible import paths."""
     import_paths = [
-        "utils.rate_limiter",            # Direct import
-        "CyberAgents.utils.rate_limiter" # Absolute import from project
+        "utils.rate_limiter",  # Direct import
+        "CyberAgents.utils.rate_limiter",  # Absolute import from project
     ]
-    
+
     for path in import_paths:
         try:
             module = importlib.import_module(path)
             return module.RateLimiter
         except (ImportError, AttributeError):
             continue
-    
+
     # If all imports fail, create a simple fallback implementation
     # This ensures the script can run even without the external dependency
     class FallbackRateLimiter:
         """Fallback implementation if RateLimiter can't be imported."""
+
         def __init__(self, max_requests=10, time_window=60):
             self.max_requests = max_requests
             self.time_window = time_window
-        
+
         def __call__(self, func):
             return func  # Simply return the function without rate limiting
 
     return FallbackRateLimiter
 
+
 # Import RateLimiter using our dynamic import function
 RateLimiter = import_rate_limiter()
 # --- End: Dynamic import ---
+
+# Add the import for argparse
+import argparse
+import asyncio  # Add asyncio import for async support
 
 # import asyncio # Unused
 import json
@@ -63,7 +71,7 @@ import tempfile
 from pathlib import Path
 
 # Add Any back to the import
-from typing import Any, ClassVar, Dict, List, Optional, Type, Collection, Union
+from typing import Any, ClassVar, Collection, Dict, List, Optional, Type, Union
 
 from crewai.tools import BaseTool
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -72,10 +80,6 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 # from utils.rate_limiter import RateLimiter
 
 # import time # Unused
-
-# Add the import for argparse
-import argparse
-import asyncio  # Add asyncio import for async support
 
 
 # Set up logging
@@ -615,7 +619,7 @@ class SemgrepTool(BaseTool):
     ) -> str:
         """
         Run Semgrep scan asynchronously.
-        
+
         Args:
             code_snippet: Code to scan
             repo_url: Repository URL to clone and scan
@@ -624,34 +628,38 @@ class SemgrepTool(BaseTool):
             max_timeout: Maximum scan timeout
             use_local_policies: Whether to use local policies
             policy_preference: Policy preference
-            
+
         Returns:
             JSON string with scan results
         """
         # Import SemgrepRunner directly to avoid confusion with our own version
         from agents.appsec_engineer_agent.appsec_engineer_agent import SemgrepRunner
-        
+
         # Initialize scan rules and timeout
         scan_rules = rules if rules is not None else self.rules
         scan_timeout = max_timeout if max_timeout is not None else self.scan_timeout
-        
+
         # Validate input
         if not code_snippet and not repo_url:
-            return json.dumps({"error": "Either code_snippet or repo_url must be provided"})
-        
+            return json.dumps(
+                {"error": "Either code_snippet or repo_url must be provided"}
+            )
+
         # Create a runner instance
         runner = SemgrepRunner(rules=scan_rules, max_scan_time=scan_timeout)
-        
+
         # Handle code snippet (this is the primary test case path)
         if code_snippet:
             # Use .py extension for Python to match test expectations
             suffix = ".py" if language == "python" else ".txt"
-            
-            with tempfile.NamedTemporaryFile(mode="w", suffix=suffix, delete=False) as temp_file:
+
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=suffix, delete=False
+            ) as temp_file:
                 temp_file.write(code_snippet)
                 temp_file.flush()
                 temp_path = temp_file.name
-                
+
             try:
                 # Use the runner to scan the code
                 results = runner.scan_code(temp_path, language=language or "python")
@@ -662,18 +670,19 @@ class SemgrepTool(BaseTool):
                         os.unlink(temp_path)
                 except Exception:
                     pass
-        
+
         # Handle repository URL (incomplete implementation for test fixes)
         if repo_url:
             # Import git inside the function to avoid import errors
-            import git
             import shutil
-            
+
+            import git
+
             temp_dir = tempfile.mkdtemp(prefix="semgrep_scan_")
             try:
                 # Clone repo
                 git.Repo.clone_from(repo_url, temp_dir)
-                
+
                 # Run scan
                 results = runner.scan_code(temp_dir, language=language)
                 return json.dumps(results)
@@ -686,47 +695,74 @@ class SemgrepTool(BaseTool):
                         shutil.rmtree(temp_dir)
                 except Exception:
                     pass
-        
+
         # This should never happen (validation would return earlier)
         return json.dumps({"error": "Unknown scan error"})
 
+
 # Add at the end of the file
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Semgrep Scanner - Scan code for security vulnerabilities")
-    
+    parser = argparse.ArgumentParser(
+        description="Semgrep Scanner - Scan code for security vulnerabilities"
+    )
+
     # Define mutually exclusive group for input source
     input_group = parser.add_mutually_exclusive_group(required=True)
     input_group.add_argument("--code", help="Code snippet to scan")
     input_group.add_argument("--file_path", help="Path to file or directory to scan")
-    input_group.add_argument("--repo_url", help="URL of a Git repository to clone and scan")
-    
+    input_group.add_argument(
+        "--repo_url", help="URL of a Git repository to clone and scan"
+    )
+
     # Optional arguments
-    parser.add_argument("--language", help="Programming language of the code (auto-detected if not specified)")
-    parser.add_argument("--rules", default="p/security-audit,p/owasp-top-ten", 
-                      help="Comma-separated list of Semgrep rule sets (default: p/security-audit,p/owasp-top-ten)")
-    parser.add_argument("--max_scan_time", type=int, default=300,
-                      help="Maximum execution time in seconds (default: 300)")
-    parser.add_argument("--use_local_policies", action="store_true", default=False,
-                      help="Whether to use local policies from the policies directory")
-    parser.add_argument("--policy_preference", choices=["local", "registry", "both"], default="both",
-                      help="Policies to use: 'local' (only local), 'registry' (only registry), or 'both' (default)")
-    parser.add_argument("--output", choices=["text", "json"], default="text",
-                      help="Output format (default: text)")
-    
+    parser.add_argument(
+        "--language",
+        help="Programming language of the code (auto-detected if not specified)",
+    )
+    parser.add_argument(
+        "--rules",
+        default="p/security-audit,p/owasp-top-ten",
+        help="Comma-separated list of Semgrep rule sets (default: p/security-audit,p/owasp-top-ten)",
+    )
+    parser.add_argument(
+        "--max_scan_time",
+        type=int,
+        default=300,
+        help="Maximum execution time in seconds (default: 300)",
+    )
+    parser.add_argument(
+        "--use_local_policies",
+        action="store_true",
+        default=False,
+        help="Whether to use local policies from the policies directory",
+    )
+    parser.add_argument(
+        "--policy_preference",
+        choices=["local", "registry", "both"],
+        default="both",
+        help="Policies to use: 'local' (only local), 'registry' (only registry), or 'both' (default)",
+    )
+    parser.add_argument(
+        "--output",
+        choices=["text", "json"],
+        default="text",
+        help="Output format (default: text)",
+    )
+
     args = parser.parse_args()
-    
+
     # Initialize the tool with required parameters
     tool = SemgrepTool()
-    
+
     # Get input for the SemgrepInput model
     input_data = {
         "language": args.language,
         "rules": args.rules.split(",") if args.rules else None,
         "max_timeout": args.max_scan_time,
         "use_local_policies": args.use_local_policies,
-        "policy_preference": args.policy_preference
+        "policy_preference": args.policy_preference,
     }
-    
+
     # Add input source to arguments
     if args.code:
         input_data["code"] = args.code
@@ -734,35 +770,35 @@ if __name__ == "__main__":
         input_data["file_path"] = args.file_path
     elif args.repo_url:
         input_data["repo_url"] = args.repo_url
-    
+
     # Create SemgrepInput model
     semgrep_input = SemgrepInput(**input_data)
-    
+
     # Directly call semgrep for CLI use
     def direct_semgrep_scan(file_path, rules, language=None, output_format="text"):
         """
         Run semgrep directly using subprocess for CLI usage.
         """
         cmd = ["semgrep"]
-        
+
         # Add config - each rule needs its own --config parameter
         if rules:
             for rule in rules:
                 cmd.append(f"--config={rule}")
-        
+
         # Add language if specified
         if language:
             cmd.append(f"--lang={language}")
-        
+
         # Add output format
         if output_format == "json":
             cmd.append("--json")
-        
+
         # Add file path
         cmd.append(file_path)
-        
+
         print(f"Running semgrep command: {' '.join(cmd)}")
-        
+
         try:
             # Run semgrep command directly
             # For CLI usage, just let semgrep print to stdout
@@ -772,7 +808,7 @@ if __name__ == "__main__":
             return {"output": "Command executed directly", "findings": []}
         except Exception as e:
             return {"error": f"Error running Semgrep: {str(e)}", "findings": []}
-    
+
     # Async function to run the scan
     async def run_scan():
         try:
@@ -780,24 +816,24 @@ if __name__ == "__main__":
             if semgrep_input.file_path:
                 # Call semgrep directly with subprocess
                 results = direct_semgrep_scan(
-                    semgrep_input.file_path, 
+                    semgrep_input.file_path,
                     semgrep_input.rules,
                     semgrep_input.language,
-                    args.output
+                    args.output,
                 )
-                
+
                 # Handle text output format differently since it's not JSON
                 if args.output == "text" and "output" in results:
                     print(results["output"])
                     return
-                
+
                 # Display results based on output format
                 if args.output == "json":
                     print(json.dumps(results, indent=2))
                 else:
                     # Pretty print text format
                     print("\n=== Semgrep Scan Results ===\n")
-                    
+
                     if "error" in results:
                         print(f"Error: {results['error']}")
                     elif "findings" in results:
@@ -806,34 +842,46 @@ if __name__ == "__main__":
                             print("✅ No vulnerabilities found!")
                         else:
                             print(f"Found {len(findings)} potential vulnerabilities:\n")
-                            
+
                             for i, finding in enumerate(findings, 1):
                                 print(f"--- Finding #{i} ---")
                                 print(f"Rule:     {finding.get('rule_id', 'Unknown')}")
                                 print(f"Severity: {finding.get('severity', 'Unknown')}")
-                                print(f"Location: {finding.get('path', 'Unknown')}:{finding.get('line', 'Unknown')}")
-                                print(f"Message:  {finding.get('message', 'No description')}")
+                                print(
+                                    f"Location: {finding.get('path', 'Unknown')}:{finding.get('line', 'Unknown')}"
+                                )
+                                print(
+                                    f"Message:  {finding.get('message', 'No description')}"
+                                )
                                 if "fixed_lines" in finding:
                                     print(f"Suggested fix available")
                                 print()
-                        
+
                         # Show scan stats if available
                         if "stats" in results:
                             stats = results["stats"]
                             print("--- Scan Statistics ---")
-                            print(f"Files scanned: {stats.get('files_scanned', 'Unknown')}")
-                            print(f"Lines scanned: {stats.get('lines_scanned', 'Unknown')}")
-                            print(f"Rules applied: {stats.get('rules_applied', 'Unknown')}")
-                            print(f"Scan duration: {stats.get('scan_duration', 'Unknown')} seconds")
+                            print(
+                                f"Files scanned: {stats.get('files_scanned', 'Unknown')}"
+                            )
+                            print(
+                                f"Lines scanned: {stats.get('lines_scanned', 'Unknown')}"
+                            )
+                            print(
+                                f"Rules applied: {stats.get('rules_applied', 'Unknown')}"
+                            )
+                            print(
+                                f"Scan duration: {stats.get('scan_duration', 'Unknown')} seconds"
+                            )
                     else:
                         print("No findings or unexpected result format.")
                 return
-            
+
             # Otherwise use the existing _arun method for code snippets
             # Map between SemgrepInput attributes and _arun parameters
             code_snippet = semgrep_input.code
             repo_url = None  # Not used in this context
-            
+
             # Call _arun with the correct parameter names
             result_json = await tool._arun(
                 code_snippet=code_snippet,
@@ -842,19 +890,21 @@ if __name__ == "__main__":
                 rules=semgrep_input.rules,
                 max_timeout=semgrep_input.max_timeout,
                 use_local_policies=semgrep_input.use_local_policies,
-                policy_preference=semgrep_input.policy_preference
+                policy_preference=semgrep_input.policy_preference,
             )
-            
+
             # Parse results
-            results = json.loads(result_json) if isinstance(result_json, str) else result_json
-            
+            results = (
+                json.loads(result_json) if isinstance(result_json, str) else result_json
+            )
+
             # Display results based on output format
             if args.output == "json":
                 print(json.dumps(results, indent=2))
             else:
                 # Pretty print text format
                 print("\n=== Semgrep Scan Results ===\n")
-                
+
                 if "error" in results:
                     print(f"Error: {results['error']}")
                 elif "findings" in results:
@@ -863,17 +913,21 @@ if __name__ == "__main__":
                         print("✅ No vulnerabilities found!")
                     else:
                         print(f"Found {len(findings)} potential vulnerabilities:\n")
-                        
+
                         for i, finding in enumerate(findings, 1):
                             print(f"--- Finding #{i} ---")
                             print(f"Rule:     {finding.get('rule_id', 'Unknown')}")
                             print(f"Severity: {finding.get('severity', 'Unknown')}")
-                            print(f"Location: {finding.get('path', 'Unknown')}:{finding.get('line', 'Unknown')}")
-                            print(f"Message:  {finding.get('message', 'No description')}")
+                            print(
+                                f"Location: {finding.get('path', 'Unknown')}:{finding.get('line', 'Unknown')}"
+                            )
+                            print(
+                                f"Message:  {finding.get('message', 'No description')}"
+                            )
                             if "fixed_lines" in finding:
                                 print(f"Suggested fix available")
                             print()
-                    
+
                     # Show scan stats if available
                     if "stats" in results:
                         stats = results["stats"]
@@ -881,13 +935,16 @@ if __name__ == "__main__":
                         print(f"Files scanned: {stats.get('files_scanned', 'Unknown')}")
                         print(f"Lines scanned: {stats.get('lines_scanned', 'Unknown')}")
                         print(f"Rules applied: {stats.get('rules_applied', 'Unknown')}")
-                        print(f"Scan duration: {stats.get('scan_duration', 'Unknown')} seconds")
+                        print(
+                            f"Scan duration: {stats.get('scan_duration', 'Unknown')} seconds"
+                        )
                 else:
                     print("No findings or unexpected result format.")
         except Exception as e:
             print(f"Error running Semgrep scan: {str(e)}")
             import traceback
+
             traceback.print_exc()  # Print the full traceback for better debugging
-    
+
     # Run the async function
     asyncio.run(run_scan())

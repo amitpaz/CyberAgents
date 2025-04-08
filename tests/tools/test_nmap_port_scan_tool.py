@@ -248,17 +248,19 @@ def mock_scanner_instance(nmap_tool):
 def test_tool_initialization_nmap_not_found(mock_scanner):
     """Test initialization when Nmap executable is not found."""
     tool = NmapPortScanTool()
-    assert tool.nm is None # Check internal attribute directly
+    assert tool.nm is None  # Check internal attribute directly
 
 
 # Test tool availability directly by checking internal state
 def test_tool_availability(nmap_tool):
     """Test the tool's availability based on internal state (nm object)."""
     # Case 1: Tool initialized successfully (nmap_tool fixture)
-    assert nmap_tool.nm is not None # Assume fixture provides initialized tool
+    assert nmap_tool.nm is not None  # Assume fixture provides initialized tool
 
     # Case 2: Tool failed initialization (mock nmap not found)
-    with patch("nmap.PortScanner", side_effect=nmap.nmap.PortScannerError("Nmap not found")):
+    with patch(
+        "nmap.PortScanner", side_effect=nmap.nmap.PortScannerError("Nmap not found")
+    ):
         failed_tool = NmapPortScanTool()
         assert failed_tool.nm is None
 

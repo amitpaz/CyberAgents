@@ -12,7 +12,7 @@ import pytest
 # Add the project root to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
-from tools.git_search.git_search_tool import (  # noqa: E402
+from tools.github_search.github_search_tool import (  # noqa: E402
     GitHubRateLimiter,
     GitHubSearchTool,
 )

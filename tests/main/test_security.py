@@ -11,25 +11,25 @@
 """
 
 # """Security test suite for the domain intelligence crew and API interactions."""
-# 
+#
 # import time  # Import time for potential sleeps in rate limit tests
-# 
+#
 # # Removed unused Mock and patch
 # # from unittest.mock import Mock, patch, AsyncMock
 # from unittest.mock import AsyncMock  # Keep AsyncMock if used
-# 
+#
 # import pytest
-# 
+#
 # # Keep AgentConfig import if used by tests
 # from api.agents.base_agent import AgentConfig
-# 
+#
 # # Import only DomainIntelligenceCrew from main
 # from main import DomainIntelligenceCrew
-# 
+#
 # # Remove unused TestClient import
 # # from fastapi.testclient import TestClient
-# 
-# 
+#
+#
 # @pytest.fixture(scope="module")
 # def security_crew():
 #     """Create a crew instance for security testing."""
@@ -42,8 +42,8 @@
 #         pytest.fail(
 #             f"Failed to initialize DomainIntelligenceCrew for security tests: {e}"
 #         )
-# 
-# 
+#
+#
 # @pytest.fixture
 # def sample_security_agent_config():
 #     """Provide a sample configuration for a hypothetical security agent."""
@@ -54,16 +54,16 @@
 #         backstory="Designed for security testing.",
 #         tools=[],
 #     )
-# 
-# 
+#
+#
 # # Note: These tests assume that input validation happens somewhere before
 # # the crew (e.g., in an API layer or before calling run_analysis).
 # # Currently, run_analysis might pass invalid domains to tools, which then fail.
 # # The tests are adjusted to call run_analysis and check for errors in the *result*,
 # # rather than expecting specific ValueErrors during the call itself.
 # # Also removing async markers as run_analysis is now synchronous.
-# 
-# 
+#
+#
 # # Make tests synchronous again
 # def test_input_handling_long_domain(security_crew):
 #     """Test handling of excessively long domain names."""
@@ -77,8 +77,8 @@
 #     # long_prompt = f"Analyze domain {long_domain}"
 #     # result = await security_crew.run_analysis(long_prompt)
 #     # assert "error" in result or relevant handling
-# 
-# 
+#
+#
 # # Make tests synchronous again
 # def test_input_handling_sql_injection(security_crew):
 #     """Test handling of potential SQL injection patterns in input."""
@@ -88,8 +88,8 @@
 #     # Assert that analysis completed without error
 #     assert "error" not in results, f"Analysis failed unexpectedly: {results.get('error')}"
 #     assert "analysis_report" in results
-# 
-# 
+#
+#
 # # Make tests synchronous again
 # def test_input_handling_command_injection(security_crew):
 #     """Test handling of potential command injection patterns."""
@@ -99,8 +99,8 @@
 #     # Assert that analysis completed without error
 #     assert "error" not in results, f"Analysis failed unexpectedly: {results.get('error')}"
 #     assert "analysis_report" in results
-# 
-# 
+#
+#
 # # Make tests synchronous again
 # def test_input_handling_xss(security_crew):
 #     """Test handling of potential XSS patterns."""
@@ -110,8 +110,8 @@
 #     # Assert that analysis completed without error
 #     assert "error" not in results, f"Analysis failed unexpectedly: {results.get('error')}"
 #     assert "analysis_report" in results
-# 
-# 
+#
+#
 # # Make tests synchronous again
 # def test_input_handling_path_traversal(security_crew):
 #     """Test handling of potential path traversal patterns."""
@@ -121,8 +121,8 @@
 #     # Assert that analysis completed without error
 #     assert "error" not in results, f"Analysis failed unexpectedly: {results.get('error')}"
 #     assert "analysis_report" in results
-# 
-# 
+#
+#
 # # Make tests synchronous again
 # def test_input_handling_unicode_homoglyph(security_crew):
 #     """Test handling of Unicode homoglyph domains."""
@@ -135,8 +135,8 @@
 #     assert isinstance(results, dict), f"Expected dict result, got: {type(results)}"
 #     # If no error, fine. If error, also fine for now.
 #     # assert "error" not in results
-# 
-# 
+#
+#
 # # Make tests synchronous again
 # def test_input_handling_dos_pattern(security_crew):
 #     """Test handling of potential DoS patterns in domain input."""
@@ -147,8 +147,8 @@
 #     # For now, assume it completes or fails gracefully within run_analysis
 #     assert "error" not in results, f"Analysis failed unexpectedly: {results.get('error')}"
 #     # assert "analysis_report" in results # Report might not be generated if DoS is severe
-# 
-# 
+#
+#
 # # Make tests synchronous again
 # def test_input_handling_sensitive_data(security_crew):
 #     """Test handling of potentially sensitive data patterns in domain input."""
@@ -158,8 +158,8 @@
 #     # Assert that analysis completed without error
 #     assert "error" not in results, f"Analysis failed unexpectedly: {results.get('error')}"
 #     assert "analysis_report" in results
-# 
-# 
+#
+#
 # # Rate limiting needs to be implemented externally or within tools.
 # # This test is less meaningful against run_analysis directly.
 # @pytest.mark.skip(reason="Rate limiting tests belong at API or tool level, not direct crew call")
@@ -174,8 +174,8 @@
 #         time.sleep(0.1)  # Small delay
 #     # This assertion is weak, depends heavily on implementation
 #     assert errors > 0, "Expected some requests to fail due to rate limiting"
-# 
-# 
+#
+#
 # # Make tests synchronous again
 # def test_input_handling_memory_exhaustion(security_crew):
 #     """Test handling of extremely long inputs potentially causing memory issues."""
@@ -186,8 +186,8 @@
 #     # For now, assume it completes or fails gracefully within run_analysis
 #     assert "error" not in results, f"Analysis failed unexpectedly: {results.get('error')}"
 #     # assert "analysis_report" in results # Report might not be generated if memory issue is severe
-# 
-# 
+#
+#
 # @pytest.mark.security
 # @pytest.mark.parametrize(
 #     "malicious_input",
@@ -206,10 +206,10 @@
 #     # Mock the underlying kickoff or tool execution methods to prevent
 #     # actual execution of malicious commands.
 #     # We want to test if the input is rejected or sanitized before execution.
-# 
+#
 #     # Example: Mock the crew's main analysis method
 #     security_crew.run_analysis = AsyncMock(return_value="Analysis completed safely.")
-# 
+#
 #     # Expect the crew to handle the input without raising unhandled exceptions
 #     # or returning results indicating successful malicious command execution.
 #     try:
@@ -221,7 +221,7 @@
 #         assert "vulnerable" not in result.lower()
 #         assert "etc/passwd" not in result.lower()
 #         # Add more specific checks based on expected safe handling behavior
-# 
+#
 #     except Exception as e:
 #         # We might expect specific validation errors, but not unexpected crashes
 #         if isinstance(e, (ValueError, TypeError)):  # Example expected errors
@@ -230,8 +230,8 @@
 #             pytest.fail(
 #                 f"Crew analysis failed unexpectedly for input '{malicious_input}': {e}"
 #             )
-# 
-# 
+#
+#
 # @pytest.mark.security
 # def test_dependency_vulnerabilities():
 #     """Placeholder test for checking dependency vulnerabilities (e.g., using safety)."""
@@ -242,8 +242,8 @@
 #     # Example command (not executed here): poetry run pip-audit
 #     assert True  # Placeholder assertion
 #     pass
-# 
-# 
+#
+#
 # @pytest.mark.security
 # def test_api_key_exposure():
 #     """Placeholder test to check for hardcoded API keys or sensitive data."""
@@ -256,22 +256,22 @@
 #     # 3. Assert that no matches are found outside secure configuration methods.
 #     assert True  # Placeholder assertion
 #     pass
-# 
-# 
+#
+#
 # @pytest.mark.security
 # @pytest.mark.skip(reason="Rate limit testing requires specific setup/mocking")
 # def test_rate_limiting_abuse():
 #     """Test protections against rate limiting abuse (SKIPPED)."""
 #     pass
-# 
-# 
+#
+#
 # @pytest.mark.security
 # @pytest.mark.skip(reason="Requires manual setup and API integration")
 # def test_api_security_headers():
 #     """Test that the API returns appropriate security headers (SKIPPED)."""
 #     pass
-# 
-# 
+#
+#
 # @pytest.mark.security
 # @pytest.mark.skip(reason="Currently focusing on functionality, CSRF can be added later")
 # def test_csrf_protection():

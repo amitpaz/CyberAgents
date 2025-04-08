@@ -1,6 +1,5 @@
 """Utility functions for validating tool inputs."""
 
-
 import logging
 import re
 
