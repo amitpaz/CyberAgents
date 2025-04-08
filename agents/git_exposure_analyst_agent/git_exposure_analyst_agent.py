@@ -9,12 +9,11 @@ import os
 import yaml
 
 from crewai import Agent
-from langchain.tools import Tool
 
 from ..base_agent import BaseAgent
 from utils.llm_utils import create_llm
-from tools.git_search.git_search_tool import GitHubSearchTool
-from tools.trufflehog_scanner.trufflehog_scanner_tool import TruffleHogScannerTool
+from .git_search_tool import GitHubSearchTool
+from .trufflehog_scanner_tool import TruffleHogScannerTool
 
 logger = logging.getLogger(__name__)
 
@@ -42,24 +41,11 @@ class GitExposureAnalystAgent(BaseAgent):
         self.github_tool = GitHubSearchTool()
         self.trufflehog_tool = TruffleHogScannerTool()
         
-        # Convert to LangChain Tool format for CrewAI
-        github_search = Tool(
-            name=self.github_tool.name,
-            func=self.github_tool._run,
-            description=self.github_tool.description
-        )
-        
-        trufflehog_scanner = Tool(
-            name=self.trufflehog_tool.name,
-            func=self.trufflehog_tool._run,
-            description=self.trufflehog_tool.description
-        )
-        
         self.agent = Agent(
             role=self.config["agent"]["role"],
             goal=self.config["agent"]["goal"],
             backstory=self.config["agent"]["backstory"],
-            tools=[github_search, trufflehog_scanner],
+            tools=[self.github_tool, self.trufflehog_tool],
             verbose=True,
             allow_delegation=False,
             llm=create_llm()
