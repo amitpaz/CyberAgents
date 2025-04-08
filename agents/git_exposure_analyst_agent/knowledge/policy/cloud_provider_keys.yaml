@@ -1,0 +1,82 @@
+# Cloud Provider API Keys and Secrets Policy
+# Contains patterns for detecting common cloud provider credentials
+
+name: "Cloud Provider API Keys"
+description: "Detection patterns for cloud provider API keys, secrets, and credentials"
+author: "CyberAgents Security Team"
+version: "1.0.0"
+created: "2023-10-01"
+updated: "2023-10-01"
+category: "secret-detection"
+
+# Each pattern consists of:
+# - name: A descriptive name for the pattern
+# - regex: Regular expression to match the pattern
+# - description: Description of what the pattern detects
+# - severity: HIGH, MEDIUM, or LOW
+# - examples: Example strings that would match (for documentation, not actual keys)
+
+patterns:
+  # AWS Keys
+  - description: "AWS Access Key ID"
+    regex: "(^|[^A-Za-z0-9/+=])(AKIA[0-9A-Z]{16})([^A-Za-z0-9/+=]|$)"
+    severity: "HIGH"
+    examples:
+      - "AKIAIOSFODNN7EXAMPLE"
+
+  - description: "AWS Secret Access Key"
+    regex: "(^|[^A-Za-z0-9/+=])([a-zA-Z0-9/+=]{40})([^A-Za-z0-9/+=]|$)"
+    severity: "HIGH"
+    match_requirements:
+      - "Must have at least 5 of the following: uppercase letters, lowercase letters, numbers, and symbols /+="
+    examples:
+      - "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+
+  # Google Cloud Keys
+  - description: "Google API Key"
+    regex: "AIza[0-9A-Za-z\\-_]{35}"
+    severity: "HIGH"
+    examples:
+      - "AIzaSyDdoABCdEfGhIjKlMnOpQrStUvWxyz12345"
+
+  - description: "Google OAuth Client ID"
+    regex: "[0-9]+-[0-9a-z]+\\.apps\\.googleusercontent\\.com"
+    severity: "MEDIUM"
+    examples:
+      - "123456789012-abcdefghijklmnopqrstuvwxyz123456.apps.googleusercontent.com"
+
+  # Azure Keys
+  - description: "Azure Storage Account Key"
+    regex: "DefaultEndpointsProtocol=https;AccountName=[^;]+;AccountKey=[^;]+"
+    severity: "HIGH"
+    examples:
+      - "DefaultEndpointsProtocol=https;AccountName=storageaccountname;AccountKey=storageaccountkey=="
+
+  - description: "Azure Connection String"
+    regex: "mongodb://[-a-zA-Z0-9@:%._\\+~#=]{3,100}:[^\\s]{8,100}@[-a-zA-Z0-9@:%._\\+~#=]{3,100}\\.[a-z]{2,10}:[0-9]{4,5}"
+    severity: "HIGH"
+    examples:
+      - "mongodb://cosmosaccount:cosmoskey@cosmosaccount.documents.azure.com:10255"
+
+  # DigitalOcean Keys
+  - description: "DigitalOcean Personal Access Token"
+    regex: "do[a-z0-9_]+[a-zA-Z0-9]{64}"
+    severity: "HIGH"
+    examples:
+      - "dopatXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+
+  # Heroku API Keys
+  - description: "Heroku API Key"
+    regex: "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}"
+    severity: "MEDIUM"
+    examples:
+      - "12345678-abcd-ef12-3456-abcdef123456"
+
+# Associated file patterns - files that commonly contain these credentials
+file_patterns:
+  - ".aws/credentials"
+  - "terraform.tfstate"
+  - "credentials.json"
+  - ".env.local"
+  - ".env.production"
+  - "config.json"
