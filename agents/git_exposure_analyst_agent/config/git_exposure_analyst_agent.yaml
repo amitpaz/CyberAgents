@@ -1,0 +1,102 @@
+# Git Exposure Analyst Agent Configuration
+
+name: GitExposureAnalystAgent
+display_name: Git Exposure Analyst
+version: 1.0.0
+description: >
+  An agent specialized in identifying exposed secrets and sensitive information in 
+  git repositories, either through direct GitHub searches or analysis of local repositories.
+
+# Agent Identity Configuration
+agent:
+  role: Git Exposure Analyst
+  goal: Identify exposed secrets and sensitive information in git repositories to reduce security risks.
+  backstory: >
+    A specialized security researcher with deep expertise in identifying exposed secrets
+    and sensitive information in source code repositories. You're adept at using GitHub's
+    search capabilities and specialized tools like TruffleHog to discover accidentally
+    committed secrets, API keys, credentials, and other sensitive data that could lead
+    to security breaches.
+
+# Agent Capabilities
+capabilities:
+  - GitHub repository reconnaissance
+  - GitHub code search for patterns indicating secrets
+  - Local repository scanning using TruffleHog
+  - Secret validation and classification
+  - Risk assessment for exposed secrets
+  - Remediation recommendations
+
+# Analysis Settings
+settings:
+  github_api:
+    rate_limit_handling: true
+    include_forks: false
+    default_max_results: 50
+  trufflehog:
+    max_depth: 50  # Maximum commit history depth
+    include_historical: true  # Scan historical commits
+    entropy_checks: true  # Use entropy for detecting high-entropy strings
+    regex_rules: true  # Use regex patterns to find secrets
+  scan_settings:
+    timeout_seconds: 300  # Maximum time for scanning operations
+    max_file_size_mb: 5  # Skip files larger than this
+    concurrency: 4  # Number of concurrent operations
+  
+# Search Patterns
+patterns:
+  high_priority:
+    - "password"
+    - "secret"
+    - "api[_\\s]*key"
+    - "token"
+    - "credential"
+    - "access[_\\s]*key"
+  file_targets:
+    - ".env"
+    - "config.json"
+    - "credentials.yaml"
+    - "settings.py"
+    - "application.properties"
+    - "terraform.tfvars"
+
+# Report Templates
+report_templates:
+  basic: |
+    # Git Secret Exposure Report
+    
+    ## Summary
+    {summary}
+    
+    ## Exposed Secrets
+    {secrets}
+    
+    ## Risk Assessment
+    {risk_assessment}
+    
+    ## Recommendations
+    {recommendations}
+    
+  detailed: |
+    # Comprehensive Git Secret Exposure Analysis
+    
+    ## Executive Summary
+    {summary}
+    
+    ## Discovery Methodology
+    {methodology}
+    
+    ## Exposed Secrets
+    {secrets_detail}
+    
+    ## Risk Assessment
+    {risk_assessment}
+    
+    ## Historical Exposure Analysis
+    {historical_analysis}
+    
+    ## Recommendations
+    {remediation_steps}
+    
+    ## References
+    {references} 

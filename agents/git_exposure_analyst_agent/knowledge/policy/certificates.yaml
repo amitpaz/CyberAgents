@@ -1,0 +1,102 @@
+# Certificates and Cryptographic Keys Policy
+# Contains patterns for detecting certificates, private keys, and cryptographic material
+
+name: "Certificate Detection"
+description: "Detection patterns for certificates, keys, and related sensitive data"
+author: "CyberAgents Security Team"
+version: "1.0.0"
+created: "2023-10-01"
+updated: "2023-10-01"
+category: "secret-detection"
+
+# Each pattern consists of:
+# - name: A descriptive name for the pattern
+# - regex: Regular expression to match the pattern
+# - description: Description of what the pattern detects
+# - severity: HIGH, MEDIUM, or LOW
+# - examples: Example strings that would match (for documentation)
+
+patterns:
+  # SSL/TLS Certificates
+  - description: "SSL/TLS Certificate"
+    regex: "-----BEGIN\\s+CERTIFICATE-----"
+    severity: "MEDIUM"
+    examples:
+      - "-----BEGIN CERTIFICATE-----"
+
+  - description: "Certificate Key"
+    regex: "-----BEGIN\\s+(?:RSA|DSA|EC)\\s+PRIVATE\\s+KEY-----"
+    severity: "HIGH"
+    examples:
+      - "-----BEGIN RSA PRIVATE KEY-----"
+      - "-----BEGIN DSA PRIVATE KEY-----"
+      - "-----BEGIN EC PRIVATE KEY-----"
+
+  - description: "PKCS#12 Certificate"
+    regex: "(?i)(?:pkcs12|pfx|p12)\\s*[:=]\\s*['\"](.+)['\"]"
+    severity: "HIGH"
+    examples:
+      - "pkcs12: 'certificate.p12'"
+      - "pfx='my_cert.pfx'"
+
+  # Certificate Signing Requests
+  - description: "Certificate Signing Request (CSR)"
+    regex: "-----BEGIN\\s+CERTIFICATE\\s+REQUEST-----"
+    severity: "MEDIUM"
+    examples:
+      - "-----BEGIN CERTIFICATE REQUEST-----"
+
+  # Trust Stores and Keystores
+  - description: "Java Keystore Password"
+    regex: "(?i)(?:keystore|truststore)\\s*password\\s*[:=]\\s*['\"](.+)['\"]"
+    severity: "HIGH"
+    examples:
+      - "keystore password: 'keystorepass'"
+      - "truststore_password='truststorepass'"
+
+  - description: "Keystore Reference"
+    regex: "(?i)(?:keystore|truststore)\\s*(?:file|path)\\s*[:=]\\s*['\"](.+\\.(?:jks|p12|pfx|keystore))['\"]"
+    severity: "MEDIUM"
+    examples:
+      - "keystore_file: 'server.jks'"
+      - "truststore_path='ca.keystore'"
+
+  # TLS Configuration
+  - description: "TLS Private Key File"
+    regex: "(?i)(?:private[_-]?key|key[_-]?file)\\s*[:=]\\s*['\"](.+\\.(?:key|pem))['\"]"
+    severity: "HIGH"
+    examples:
+      - "private_key: 'server.key'"
+      - "key_file='/etc/ssl/private/tls.pem'"
+
+  - description: "TLS Certificate File"
+    regex: "(?i)(?:certificate|cert[_-]?file)\\s*[:=]\\s*['\"](.+\\.(?:crt|pem|cer))['\"]"
+    severity: "MEDIUM"
+    examples:
+      - "certificate: 'server.crt'"
+      - "cert_file='/etc/ssl/certs/tls.pem'"
+
+  # Self-signed markers
+  - description: "Self-Signed Certificate Comment"
+    regex: "(?i)(?:self[_-]?signed|generate[d]?\\s+certificate)"
+    severity: "LOW"
+    examples:
+      - "# Self-signed certificate for development"
+      - "// Generated certificate for testing"
+
+# Associated file patterns - files that commonly contain these certificates and keys
+file_patterns:
+  - "*.key"
+  - "*.pem"
+  - "*.crt"
+  - "*.cer"
+  - "*.p12"
+  - "*.pfx"
+  - "*.jks"
+  - "*.keystore"
+  - "*.truststore"
+  - "cert/"
+  - "certs/"
+  - "certificates/"
+  - "ssl/"
+  - "private/"

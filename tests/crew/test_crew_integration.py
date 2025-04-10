@@ -1,15 +1,15 @@
 """Integration tests for the domain analysis crew."""
 
+from agents.security_manager_agent.security_manager_agent import SecurityManagerAgent
+from agents.dns_analyzer_agent.dns_analyzer_agent import DNSAnalyzerAgent
 import asyncio
 import copy
 import json
 import os
 
-
 import pytest
-from crewai import Agent, Crew, Task, Process
+from crewai import Agent, Crew, Process, Task
 from dotenv import load_dotenv
-
 from langchain_openai import ChatOpenAI
 
 from tools import DNSTool, ThreatTool, WhoisTool
@@ -21,8 +21,6 @@ load_dotenv()
 MODEL_NAME = os.environ.get("OPENAI_MODEL_NAME", "o3-mini")
 
 # Import necessary agent classes
-from agents.dns_analyzer_agent.dns_analyzer_agent import DNSAnalyzerAgent
-from agents.security_manager_agent.security_manager_agent import SecurityManagerAgent
 
 
 class CustomChatOpenAI(ChatOpenAI):
@@ -266,7 +264,7 @@ async def test_dns_agent_task():
         manager_agent_wrapper = SecurityManagerAgent()
     except Exception as e:
         pytest.fail(f"Failed to initialize agents for test_dns_agent_task: {e}")
-    
+
     # Skip test if agents failed initialization (though fail above is more likely)
     # Redundant check, kept for parallel structure if needed
     # if not dns_agent_wrapper or not manager_agent_wrapper:
@@ -290,7 +288,7 @@ async def test_dns_agent_task():
     assert result is not None
     # Check the raw output string representation for expected content
     assert isinstance(result.raw, str)
-    assert "142.251." in result.raw # Check for part of expected IP
+    assert "142.251." in result.raw  # Check for part of expected IP
 
 
 if __name__ == "__main__":

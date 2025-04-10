@@ -29,7 +29,7 @@ class SubdomainFinderTool(BaseTool):
         "Discovers subdomains of a given domain using certificate transparency logs (crt.sh)."
     )
     args_schema: Type[BaseModel] = SubdomainInput
-    
+
     @property
     def input_schema(self) -> Type[BaseModel]:
         """Return the input schema for compatibility with older code."""
@@ -55,12 +55,15 @@ class SubdomainFinderTool(BaseTool):
             url = f"crt.sh/?q=%25.{domain}&output=json"
             logger.info(f"Querying crt.sh for domain {domain}")
             response = requests.get("https://" + url, timeout=30)
-            
+
             if response.status_code != 200:
                 logger.error(
                     f"Error from crt.sh for domain {domain}: {response.status_code} {response.text}"
                 )
-                return {"error": f"crt.sh request failed. Status code: {response.status_code}", "domain": domain}
+                return {
+                    "error": f"crt.sh request failed. Status code: {response.status_code}",
+                    "domain": domain,
+                }
 
             if (
                 response.text == "null\n"
@@ -102,7 +105,10 @@ class SubdomainFinderTool(BaseTool):
             logger.error(
                 f"Error decoding JSON response from crt.sh for {domain}: {e}. Response text: {response.text[:200]}"
             )
-            return {"error": f"Failed to parse JSON response from crt.sh: {e}", "domain": domain}
+            return {
+                "error": f"Failed to parse JSON response from crt.sh: {e}",
+                "domain": domain,
+            }
         except Exception as e:
             logger.error(
                 f"Unexpected error in SubdomainFinderTool for {domain}: {e}",

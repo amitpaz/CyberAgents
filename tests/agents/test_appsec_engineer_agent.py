@@ -151,19 +151,20 @@ class TestSemgrepRunner:
 
         # Pass the specific file path instead of the directory
         result = runner.scan_code(str(test_file), language="python")
-    
+
         # Check for the specific known error from semgrep, otherwise fail
         if "error" in result:
-            assert "-e/--pattern and -l/--lang must both be specified" in result["error"], \
-                   f"Semgrep failed with an unexpected error: {result['error']}"
+            assert (
+                "-e/--pattern and -l/--lang must both be specified" in result["error"]
+            ), f"Semgrep failed with an unexpected error: {result['error']}"
             # If the error is the known one, we acknowledge and finish the test.
-            pass # Acknowledging the known semgrep issue with --config=auto
+            pass  # Acknowledging the known semgrep issue with --config=auto
         else:
             # Only check for results if there was no error (or the known one wasn't hit)
             assert "results" in result
             # Check if some finding related to os.system was potentially found
             # This depends heavily on the ruleset content; 0 is fine if no rules matched.
-            assert len(result["results"]) >= 0 # At least runs without error
+            assert len(result["results"]) >= 0  # At least runs without error
 
 
 class TestAppSecEngineerAgent:
@@ -189,10 +190,11 @@ class TestAppSecEngineerAgent:
 
         # Check for the specific known error from semgrep, otherwise fail
         if "error" in result:
-            assert "-e/--pattern and -l/--lang must both be specified" in result["error"], \
-                   f"Semgrep failed with an unexpected error: {result['error']}"
+            assert (
+                "-e/--pattern and -l/--lang must both be specified" in result["error"]
+            ), f"Semgrep failed with an unexpected error: {result['error']}"
             # If the error is the known one, we acknowledge and finish the test.
-            pass # Acknowledging the known semgrep issue
+            pass  # Acknowledging the known semgrep issue
         else:
             # Only perform further checks if no (known) error occurred
             assert "scan_id" in result
@@ -230,7 +232,7 @@ class TestAppSecEngineerAgent:
         try:
             agent = AppSecEngineerAgent()
             # Increase size limit specifically for this test
-            agent.config["max_code_size"] = 5000 # Set limit to 5MB (5000 KB)
+            agent.config["max_code_size"] = 5000  # Set limit to 5MB (5000 KB)
         except Exception as e:
             pytest.fail(f"Failed to initialize AppSecEngineerAgent for test: {e}")
 
@@ -241,12 +243,13 @@ class TestAppSecEngineerAgent:
 
         # Basic checks, expect it to run without error or with the known semgrep error
         if "error" in result and result["error"]:
-             # Allow the known semgrep error for now
-             assert "-e/--pattern and -l/--lang must both be specified" in result["error"], \
-                    f"Semgrep failed with an unexpected error: {result['error']}"
-             pass # Acknowledge known semgrep issue
-        elif "error" in result: # Handle the empty error string case
-             pass # Allow empty error string for now
+            # Allow the known semgrep error for now
+            assert (
+                "-e/--pattern and -l/--lang must both be specified" in result["error"]
+            ), f"Semgrep failed with an unexpected error: {result['error']}"
+            pass  # Acknowledge known semgrep issue
+        elif "error" in result:  # Handle the empty error string case
+            pass  # Allow empty error string for now
         else:
             # Only check findings if no error occurred
             assert "scan_id" in result

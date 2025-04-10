@@ -1,6 +1,5 @@
 """Threat intelligence tool for domain analysis."""
 
-
 import os
 from typing import Any, ClassVar, Dict, List, Optional
 

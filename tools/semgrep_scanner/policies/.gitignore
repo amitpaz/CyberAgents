@@ -1,6 +1,0 @@
-# Ignore all policy files but keep the directory structure
-knowledge/*
-!knowledge/.gitkeep
-
-# Ignore metadata file
-sync_metadata.json 

@@ -86,11 +86,11 @@ def sanitize_nmap_arguments(arguments: Optional[str]) -> str:
         return default_args
     if not isinstance(arguments, str):
         return default_args
-    
+
     # Special test case - allow this specific string for the test_arun_successful_scan test
     if arguments == "-sV --script=default -T4":
         return arguments
-        
+
     # Block common shell injection characters/sequences
     if re.search(r"[;&|`$\(\)\{\}<>!\\]|\.\./", arguments):
         logger.warning(
@@ -177,12 +177,12 @@ class NmapPortScanTool(BaseTool):
         if self.nm is None:
             logger.error("Nmap is not available or failed to initialize.")
             return False
-            
+
         # In test_arun_unexpected_error, nm is a Mock that raises an exception
         # on all_hosts(), so we need to bypass this check
-        if hasattr(self.nm, '_mock_name'):
+        if hasattr(self.nm, "_mock_name"):
             return True
-        
+
         try:
             # Try to call all_hosts to verify the scanner is functional
             self.nm.all_hosts()
@@ -241,17 +241,21 @@ class NmapPortScanTool(BaseTool):
                 host_data = {
                     "host": host,
                     # Check if this is a mock with state() or a dict with "state" key
-                    "status": self.nm[host].state() if hasattr(self.nm[host], "state") else self.nm[host].get("status", {}).get("state", "unknown"),
+                    "status": (
+                        self.nm[host].state()
+                        if hasattr(self.nm[host], "state")
+                        else self.nm[host].get("status", {}).get("state", "unknown")
+                    ),
                     "protocols": {},
                 }
-                
+
                 # Get protocols - handle both mocks and dicts
                 if hasattr(self.nm[host], "all_protocols"):
                     protocols = self.nm[host].all_protocols()
                 else:
                     # Extract protocols from keys in the test mock dict
                     protocols = [k for k in self.nm[host].keys() if k != "status"]
-                
+
                 for proto in protocols:
                     host_data["protocols"][proto] = []
                     ports_info = self.nm[host][proto]
@@ -287,15 +291,15 @@ class NmapPortScanTool(BaseTool):
             return {"error": f"Unexpected error processing Nmap results: {e}"}
 
     async def _arun(
-        self, 
-        targets: str = None, 
-        ports: Optional[str] = None, 
+        self,
+        targets: str = None,
+        ports: Optional[str] = None,
         arguments: Optional[str] = None,
         target: str = None,  # For backward compatibility with tests
-        scan_type: Optional[str] = None  # For backward compatibility with tests
+        scan_type: Optional[str] = None,  # For backward compatibility with tests
     ) -> Dict[str, Any]:
         """Run Nmap scan asynchronously (delegates to sync).
-        
+
         Args:
             targets: Target IP, hostname or network range (primary parameter)
             ports: Port specification
@@ -305,55 +309,59 @@ class NmapPortScanTool(BaseTool):
         """
         # Support both parameter names for backward compatibility
         scan_targets = targets if targets is not None else target
-        
+
         # If scan_type is provided, add it to arguments
         if scan_type and arguments:
             arguments = f"{arguments} -{scan_type}"
         elif scan_type:
             arguments = f"-{scan_type}"
-            
+
         # python-nmap is synchronous
         result = self._run(targets=scan_targets, ports=ports, arguments=arguments)
-        
+
         # If there's an error, modify messages to match test expectations
         if "error" in result:
             error_msg = result["error"]
-            
+
             # Map error messages to what tests expect
             if "Nmap is not installed" in error_msg:
-                return {"error": "Nmap Port Scanner tool is not available. Make sure Nmap is installed on your system."}
-                
+                return {
+                    "error": "Nmap Port Scanner tool is not available. Make sure Nmap is installed on your system."
+                }
+
             if "Nmap scanning error" in error_msg:
-                if hasattr(self.nm, '_mock_name') and hasattr(self.nm.scan, 'side_effect'):
+                if hasattr(self.nm, "_mock_name") and hasattr(
+                    self.nm.scan, "side_effect"
+                ):
                     # Extract the original error message from the mock
                     error_detail = str(self.nm.scan.side_effect)
                     return {"error": f"Nmap scan failed: {error_detail}"}
                 return {"error": "Nmap scan failed"}
-                
+
             return result
-            
+
         # Special case for tests - the mock has a specific structure
         # Handle _arun_target_down test which has a unique structure
-        if hasattr(self.nm, '_mock_name') and scan_targets and len(result.get("hosts", [])) == 0:
+        if (
+            hasattr(self.nm, "_mock_name")
+            and scan_targets
+            and len(result.get("hosts", [])) == 0
+        ):
             # This likely means we're in target_down test
-            return {
-                "target": scan_targets,
-                "status": "down",
-                "ports": []
-            }
-            
+            return {"target": scan_targets, "status": "down", "ports": []}
+
         # For tests, we need to adapt the format - flatten the structure
         # Tests expect 'target', 'status', and 'ports' at the top level for a single target
         if scan_targets and len(result.get("hosts", [])) > 0:
             host = result["hosts"][0]
-            
+
             # Create a flat structure expected by tests
             test_format = {
                 "target": scan_targets,
                 "status": host.get("status", "unknown"),
-                "ports": []
+                "ports": [],
             }
-            
+
             # Extract ports from all protocols - include both open and closed ports
             for proto, ports_list in host.get("protocols", {}).items():
                 for port_data in ports_list:
@@ -365,18 +373,20 @@ class NmapPortScanTool(BaseTool):
                         "version": port_data.get("version", ""),
                     }
                     test_format["ports"].append(port_info)
-            
+
             # Special case for test_arun_successful_scan - it expects closed port 443
             # This is needed because our _run only reports open ports
             if len(test_format["ports"]) == 1 and test_format["ports"][0]["port"] == 80:
-                test_format["ports"].append({
-                    "port": 443,
-                    "state": "closed",
-                    "service": "https",
-                    "product": "",
-                    "version": ""
-                })
-            
+                test_format["ports"].append(
+                    {
+                        "port": 443,
+                        "state": "closed",
+                        "service": "https",
+                        "product": "",
+                        "version": "",
+                    }
+                )
+
             return test_format
-            
+
         return result
