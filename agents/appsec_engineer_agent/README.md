@@ -21,38 +21,126 @@ The agent can be used in two primary modes:
 ### Example: Direct Code Analysis
 
 ```python
+from crewai import Crew
 from agents.appsec_engineer_agent import AppSecEngineerAgent
+from crewai.tasks import Task
 
-agent = AppSecEngineerAgent()
-code = """
+# Initialize the AppSec Engineer Agent
+appsec_agent = AppSecEngineerAgent()
+
+# Create a task to analyze code
+code_snippet = """
 def user_login(username, password):
     query = "SELECT * FROM users WHERE username='" + username + "' AND password='" + password + "'"
     return db.execute(query)
 """
-results = await agent.analyze_code(code)
-print(results)
+
+analysis_task = Task(
+    description="Analyze this code for security vulnerabilities",
+    agent=appsec_agent.agent,
+    context={"code": code_snippet}
+)
+
+# Create and run a crew with the agent and task
+crew = Crew(
+    agents=[appsec_agent.agent],
+    tasks=[analysis_task]
+)
+
+# Execute the crew to get the analysis result
+result = crew.kickoff()
+print(result)
 ```
 
 ### Example: Repository Analysis
 
 ```python
+from crewai import Crew
 from agents.appsec_engineer_agent import AppSecEngineerAgent
+from crewai.tasks import Task
 
-agent = AppSecEngineerAgent()
-results = await agent.analyze_repository("https://github.com/username/repo")
-print(results)
+# Initialize the AppSec Engineer Agent
+appsec_agent = AppSecEngineerAgent()
+
+# Create a task to analyze repository
+repo_analysis_task = Task(
+    description="Analyze this repository for security vulnerabilities",
+    agent=appsec_agent.agent,
+    context={"repository_url": "https://github.com/username/repo"}
+)
+
+# Create and run a crew with the agent and task
+crew = Crew(
+    agents=[appsec_agent.agent],
+    tasks=[repo_analysis_task]
+)
+
+# Execute the crew to get the analysis result
+result = crew.kickoff()
+print(result)
 ```
 
 ## Configuration
 
-The agent supports the following configuration options:
+The agent's behavior is configured via the `agent.yaml` file, adhering to the CrewAI agent schema:
 
-- `rate_limit`: Maximum number of scans per time period
+### Required Configuration
+
+- `role`: Defines the agent's role as an "Application Security Engineer"
+- `goal`: Describes the agent's purpose of analyzing code for vulnerabilities
+- `backstory`: Provides context about the agent's expertise and approach
+- `tools`: Lists the tools used by the agent (e.g., "semgrep_code_scanner")
+- `allow_delegation`: Controls whether the agent can delegate to other agents
+
+### Optional Configuration
+
+- `verbose`: Enables detailed logging (default: true)
+- `memory`: Enables agent memory capabilities (default: false)
+- `max_iterations`: Maximum iterations for the agent (default: 15)
+- `max_rpm`: Maximum requests per minute (default: 10)
+- `cache`: Enables result caching (default: true)
+
+### Agent-Specific Settings
+
+- `supported_languages`: List of languages the agent can analyze
 - `max_code_size`: Maximum size of code to analyze (in KB)
-- `supported_languages`: List of languages to analyze (["python", "javascript", "java", "go", "ruby", "php", "c", "cpp"])
-- `max_scan_time`: Maximum time for scan execution (in seconds)
-- `semgrep_rules`: Custom Semgrep rules to apply during analysis
 
 ## Integration with Defect Review Agent
 
-When vulnerabilities are found, the AppSec Engineer Agent automatically forwards them to the Defect Review Agent, which provides specific remediation guidance for each issue. 
+When vulnerabilities are found, the AppSec Engineer Agent can delegate to the Defect Review Agent, which provides specific remediation guidance for each issue. This handoff ensures that issues are properly analyzed for risk and mitigation strategies.
+
+Example of multi-agent workflow:
+
+```python
+from crewai import Crew
+from agents.appsec_engineer_agent import AppSecEngineerAgent
+from agents.defect_review_agent import DefectReviewAgent
+from crewai.tasks import Task
+
+# Initialize agents
+appsec_agent = AppSecEngineerAgent()
+defect_agent = DefectReviewAgent()
+
+# Create tasks
+code_analysis_task = Task(
+    description="Analyze this code for security vulnerabilities",
+    agent=appsec_agent.agent,
+    context={"code": vulnerable_code}
+)
+
+remediation_task = Task(
+    description="Provide remediation guidance for the identified vulnerabilities",
+    agent=defect_agent.agent,
+    context={},
+    depends_on=[code_analysis_task]
+)
+
+# Create a crew with agents and tasks
+crew = Crew(
+    agents=[appsec_agent.agent, defect_agent.agent],
+    tasks=[code_analysis_task, remediation_task]
+)
+
+# Run the analysis and remediation workflow
+result = crew.kickoff()
+``` 

@@ -1,0 +1,30 @@
+tool:
+  name: "semgrep_code_scanner"
+  description: "Analyzes code for security vulnerabilities using Semgrep static analysis tool, supporting multiple programming languages and security rule sets."
+  version: "1.0.0"
+
+configuration:
+  parameters:
+    rules:
+      type: "array"
+      description: "List of Semgrep rule sets to use for scanning"
+      required: false
+      default: ["p/security-audit", "p/owasp-top-ten"]
+    max_scan_time:
+      type: "number"
+      description: "Maximum time in seconds for a scan to complete"
+      required: false
+      default: 300
+    supported_languages:
+      type: "array"
+      description: "List of programming languages supported for analysis"
+      required: false
+      default: ["python", "javascript", "java", "go", "ruby", "php", "c", "cpp"]
+    temp_dir:
+      type: "string"
+      description: "Directory for temporary files during scanning"
+      required: false
+      default: "/tmp/semgrep-scans"
+  dependencies:
+    - "semgrep>=1.12.0"
+    - "pyyaml>=6.0" 

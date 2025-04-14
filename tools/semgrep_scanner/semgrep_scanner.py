@@ -5,22 +5,23 @@ This tool allows scanning code snippets or files for security vulnerabilities
 using Semgrep, a static analysis engine for finding bugs and enforcing code standards.
 """
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
-from crewai.tools import BaseTool
-from typing import Any, ClassVar, Collection, Dict, List, Optional, Type, Union
-from pathlib import Path
-import tempfile
-import subprocess
-import re
-import logging
-import json
-import asyncio  # Add asyncio import for async support
 import argparse
+import asyncio  # Add asyncio import for async support
 import importlib
+import json
+import logging
 import os
+import re
+import subprocess
 
 # --- Start: Add project root to sys.path for direct execution ---
 import sys
+import tempfile
+from pathlib import Path
+from typing import Any, ClassVar, Collection, Dict, List, Optional, Type, Union
+
+from crewai.tools import BaseTool
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # Calculate the path to the project root (two levels up from this file's directory)
 _project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -143,7 +144,7 @@ class SemgrepTool(BaseTool):
     code quality problems, and potential vulnerabilities.
     """
 
-    name: str = "Semgrep Security Scanner"
+    name: str = "semgrep_code_scanner"  # Changed to match the name used in agent.yaml
     description: str = (
         "Scans a given code snippet or local file/directory path for security vulnerabilities using Semgrep. "
         "Input requires the code/path and optionally the language."
@@ -159,18 +160,30 @@ class SemgrepTool(BaseTool):
     temp_dir_base: str = tempfile.gettempdir()
     # Default Semgrep rules - uses Semgrep defaults if empty
     rules: List[str] = []
+    max_code_size: int = 200  # Maximum code size in KB
     scan_timeout: int = 300
     clone_timeout: int = 600
     # Add ClassVar type hints
     supported_languages: ClassVar[List[str]] = [
         "python",
-        # ... other languages
+        "javascript",
+        "java",
+        "go",
+        "ruby",
+        "php",
+        "c",
+        "cpp",
     ]
     language_extensions: ClassVar[Dict[str, List[str]]] = {
         "python": [".py"],
-        # ... other extensions
+        "javascript": [".js", ".jsx", ".ts", ".tsx"],
+        "java": [".java"],
+        "go": [".go"],
+        "ruby": [".rb"],
+        "php": [".php"],
+        "c": [".c", ".h"],
+        "cpp": [".cpp", ".hpp", ".cc", ".cxx"],
     }
-    # ...
     # Add ClassVar type hint
     _semgrep_executable: ClassVar[Optional[str]] = None
     _checked_semgrep: ClassVar[bool] = False
@@ -236,6 +249,188 @@ class SemgrepTool(BaseTool):
     KNOWLEDGE_DIR: ClassVar[Path] = POLICIES_DIR / "knowledge"
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    def __init__(self, **kwargs):
+        """
+        Initialize the SemgrepTool.
+
+        Args:
+            max_scan_time (int, optional): Maximum time in seconds for a scan to complete.
+            rules (List[str], optional): List of Semgrep rule sets to use for scanning.
+            max_code_size (int, optional): Maximum code size in KB.
+        """
+        # Update instance attributes from kwargs
+        for key, value in kwargs.items():
+            if hasattr(self, key):
+                setattr(self, key, value)
+
+        # Check for semgrep executable if not already checked
+        if not self._checked_semgrep:
+            self._semgrep_executable = self._find_semgrep_executable()
+            self.__class__._checked_semgrep = True
+
+        super().__init__()
+
+    def _find_semgrep_executable(self) -> Optional[str]:
+        """Find the semgrep executable in the system PATH."""
+        import shutil
+
+        semgrep_path = shutil.which("semgrep")
+        if not semgrep_path:
+            logger.warning("Semgrep executable not found in PATH. Scans will fail.")
+        return semgrep_path
+
+    def scan_code(self, code_path: str, language: Optional[str] = None) -> Dict:
+        """
+        Scan code for vulnerabilities. This is a convenience method for the agent.
+
+        Args:
+            code_path: Path to the code file to scan
+            language: Optional language hint
+
+        Returns:
+            Dict with scan results
+        """
+        return self._run(
+            file_path=code_path,
+            language=language,
+            rules=self.rules,
+            max_timeout=self.max_scan_time,
+        )
+
+    def scan_directory(self, dir_path: str) -> Dict:
+        """
+        Scan a directory of code files. This is a convenience method for the agent.
+
+        Args:
+            dir_path: Path to the directory to scan
+
+        Returns:
+            Dict with scan results
+        """
+        return self._run(
+            file_path=dir_path,
+            rules=self.rules,
+            max_timeout=self.max_scan_time,
+        )
+
+    def scan_code_snippet(self, code: str, language: Optional[str] = None) -> Dict:
+        """
+        Scan a code snippet directly. This is a convenience method for the agent.
+
+        Args:
+            code: The code snippet to scan
+            language: Optional language hint
+
+        Returns:
+            Dict with scan results
+        """
+        return self._run(
+            code=code,
+            language=language,
+            rules=self.rules,
+            max_timeout=self.max_scan_time,
+        )
+
+    def generate_report(self, findings: List[Dict]) -> Dict:
+        """
+        Generate a formatted report of security findings.
+
+        Args:
+            findings: List of findings from a scan
+
+        Returns:
+            Dict with formatted report
+        """
+        if not findings:
+            return {
+                "summary": "No security issues found.",
+                "findings_count": 0,
+                "severity_summary": {
+                    "critical": 0,
+                    "high": 0,
+                    "medium": 0,
+                    "low": 0,
+                    "info": 0,
+                },
+            }
+
+        # Count findings by severity
+        severity_counts = {
+            "critical": 0,
+            "high": 0,
+            "medium": 0,
+            "low": 0,
+            "info": 0,
+        }
+
+        for finding in findings:
+            severity = finding.get("severity", "info").lower()
+            if severity in severity_counts:
+                severity_counts[severity] += 1
+            else:
+                severity_counts["info"] += 1
+
+        # Generate summary text
+        total_findings = len(findings)
+        summary = f"Found {total_findings} security issues:\n"
+        for severity, count in severity_counts.items():
+            if count > 0:
+                summary += f"- {severity.capitalize()}: {count}\n"
+
+        # Format findings for the report
+        formatted_findings = []
+        for i, finding in enumerate(findings, 1):
+            formatted_finding = {
+                "id": i,
+                "rule_id": finding.get("rule_id", "unknown"),
+                "message": finding.get("message", "No description available"),
+                "severity": finding.get("severity", "info"),
+                "path": finding.get("path", "unknown"),
+                "line": finding.get("line", 0),
+                "code": finding.get("code", ""),
+                "cwe": finding.get("cwe", []),
+                "owasp": finding.get("owasp", []),
+                "recommendation": self._generate_recommendation(finding),
+            }
+            formatted_findings.append(formatted_finding)
+
+        return {
+            "summary": summary,
+            "findings_count": total_findings,
+            "severity_summary": severity_counts,
+            "findings": formatted_findings,
+        }
+
+    def _generate_recommendation(self, finding: Dict) -> str:
+        """
+        Generate a recommendation for fixing a security issue.
+
+        Args:
+            finding: The finding to generate a recommendation for
+
+        Returns:
+            String with recommendation
+        """
+        # This would be more sophisticated in a real implementation,
+        # potentially using LLM-generated recommendations
+        rule_id = finding.get("rule_id", "").lower()
+        severity = finding.get("severity", "").lower()
+
+        if "injection" in rule_id or "sql" in rule_id:
+            return (
+                "Use parameterized queries or an ORM to prevent SQL injection attacks."
+            )
+        elif "xss" in rule_id or "cross-site" in rule_id:
+            return "Use content security policy and proper output encoding to prevent XSS attacks."
+        elif "auth" in rule_id or "authentication" in rule_id:
+            return "Implement proper authentication mechanisms and session management."
+        elif "secret" in rule_id or "credential" in rule_id:
+            return "Store secrets and credentials securely using environment variables or a secrets manager."
+        elif severity == "critical" or severity == "high":
+            return "This is a high-priority issue that should be addressed immediately."
+        else:
+            return "Review the code and implement appropriate security controls."
 
     async def _run(
         self,
