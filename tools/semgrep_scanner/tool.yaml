@@ -1,0 +1,40 @@
+tool:
+  name: "semgrep_scanner"
+  description: "Scans a Git repository URL, a local filesystem path, or a direct code snippet using `semgrep scan --config=auto`."
+  version: "1.1.0"
+
+configuration:
+  parameters:
+    repo_url:
+      type: "string"
+      description: "URL of the Git repository to clone and scan. Provide only one of repo_url, local_path, or code_snippet."
+      required: false
+      default: null
+    local_path:
+      type: "string"
+      description: "Path to a local directory or file to scan. Provide only one of repo_url, local_path, or code_snippet."
+      required: false
+      default: null
+    code_snippet:
+      type: "string"
+      description: "A string containing the code snippet to scan. Provide only one of repo_url, local_path, or code_snippet."
+      required: false
+      default: null
+    language:
+      type: "string"
+      description: "Optional specific language for Semgrep to focus on (--lang flag). Recommended when using code_snippet."
+      required: false
+      default: null
+    save_repo:
+      type: "boolean"
+      description: "If true and repo_url was provided, keeps the cloned repository locally after scanning."
+      required: false
+      default: false
+    download_folder:
+      type: "string"
+      description: "If repo_url was provided, optional path to clone the repository into. If not provided, a temporary directory is used."
+      required: false
+      default: null
+  dependencies:
+    - "semgrep>=1.12.0"
+    - "pyyaml>=6.0" 

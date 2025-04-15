@@ -5,20 +5,23 @@
 ## Changes Made
 
 <!-- List the specific changes you've made, grouped by category -->
-- 
-- 
-- 
+
+-
+-
+-
 
 ## Testing
 
 <!-- Explain how you've tested these changes -->
-- 
-- 
+
+-
+-
 
 ## Related Issues
 
 <!-- Link to any related issues this PR addresses -->
-- 
+
+-
 
 ## Screenshots (if applicable)
 
@@ -30,11 +33,11 @@
 
 ## Checklist
 
-- [ ] My PR title follows semantic versioning format (feat:, fix:, docs:, etc.)
-- [ ] I've grouped related changes in logical commits
-- [ ] I've tested these changes thoroughly
-- [ ] I've updated documentation if necessary
-- [ ] My changes follow the repository's established patterns and practices
+- \[ \] My PR title follows semantic versioning format (feat:, fix:, docs:, etc.)
+- \[ \] I've grouped related changes in logical commits
+- \[ \] I've tested these changes thoroughly
+- \[ \] I've updated documentation if necessary
+- \[ \] My changes follow the repository's established patterns and practices
 
 ## Type of change
 
