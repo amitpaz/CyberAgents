@@ -19,3 +19,12 @@ memory: false
 max_iterations: 15
 max_rpm: 60
 cache: true
+enable_collaborative_analysis: true
+
+# Collaborative analysis settings
+# These agents are referenced in collaborative workflows
+collaborative_agents:
+  - "exposure_analyst_agent"     # Analyzes external exposure and attack paths
+  - "threat_intelligence_agent"  # Evaluates threat landscape and exploit availability
+  - "security_architect_agent"   # Assesses architectural impact and exploitation difficulty
+  - "evidence_collection_agent"  # Compiles evidence from all analyses
