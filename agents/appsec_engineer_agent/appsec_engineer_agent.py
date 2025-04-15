@@ -1,577 +1,178 @@
 """
 AppSec Engineer Agent for security code scanning and vulnerability detection.
 
-This agent is capable of analyzing code for security vulnerabilities using
-Semgrep as the primary scanning tool. It can process code provided directly
-or clone and scan GitHub repositories.
+This agent leverages the SemgrepTool to analyze code for security vulnerabilities.
 """
 
 import logging
 import os
-import re
-import shutil
-import subprocess
-import uuid
 from pathlib import Path
-from typing import ClassVar, Dict, List, Optional, Any, cast
+from typing import Dict, List, Optional
 
 import yaml
 from crewai import Agent
-from pydantic import (
-    BaseModel,
-    ConfigDict,
-    Field,
-    HttpUrl,
-    ValidationError,
-    field_validator,
-    model_validator,
-)
+from pydantic import (BaseModel, ConfigDict, Field, ValidationError,
+                      field_validator)
 
 from agents.base_agent import BaseAgent
-from tools.semgrep_scanner import SemgrepCodeScanner
-from utils.validation_utils import is_valid_url, validate_yaml_against_schema
+# Remove unused RateLimiter import
+# from utils.rate_limiter import RateLimiter
 
+# Import the actual tool
+from tools.semgrep_scanner.semgrep_scanner import SemgrepTool
 
 logger = logging.getLogger(__name__)
 
 
-# Pydantic models for configuration validation
-class LLMConfig(BaseModel):
-    """Configuration for the LLM used by the agent."""
+# --- Pydantic Models for agent.yaml Structure ---
 
-    model: Optional[str] = None
-    temperature: Optional[float] = Field(None, ge=0, le=2)
-    api_key: Optional[str] = None
-    base_url: Optional[HttpUrl] = None
-    
-    model_config = ConfigDict(extra="forbid")
+# Simplify the model to standard Agent fields loaded from YAML
+class AgentYamlModel(BaseModel):
+    """Pydantic model representing the standard agent.yaml structure for CrewAI Agent."""
 
+    role: str
+    goal: str
+    backstory: str
+    # Tools list from YAML might not be directly used if we instantiate tools here
+    # tools: List[str]
+    allow_delegation: bool
+    verbose: bool = True
+    memory: bool = False # Note: CrewAI Agent does not use this directly in constructor
+    max_iterations: int = 15
+    max_rpm: Optional[int] = None
+    cache: bool = True # Note: CrewAI Agent does not use this directly in constructor
 
-class FunctionCallingLLM(BaseModel):
-    """Configuration for the function calling LLM."""
+    # Remove non-standard fields (metadata, custom config, inputs, outputs, etc.)
+    # These should be defined elsewhere or are part of tool schemas
 
-    model: Optional[str] = None
-    temperature: Optional[float] = Field(None, ge=0, le=2)
-    
-    model_config = ConfigDict(extra="forbid")
-
-
-class FileAnalysisLimits(BaseModel):
-    """Limits for file analysis operations."""
-
-    max_file_size: int = Field(5242880, ge=1)  # 5MB default
-    allowed_extensions: Optional[List[str]] = None
-    disallowed_extensions: Optional[List[str]] = None
-    
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")  # Ignore extra fields found in YAML
 
 
-class SecurityContext(BaseModel):
-    """Security context and permissions for the agent."""
-
-    allowed_domains: Optional[List[str]] = None
-    max_request_size: int = Field(1048576, ge=1)  # 1MB default
-    timeout: int = Field(30, ge=1)
-    allow_internet_access: bool = False
-    logging_level: str = Field(
-        "INFO", pattern="^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$"
-    )
-    allow_code_execution: bool = False
-    allow_ocr: bool = False
-    allow_file_analysis: bool = False
-    file_analysis_limits: Optional[FileAnalysisLimits] = None
-    
-    model_config = ConfigDict(extra="forbid")
+# --- End Pydantic Models ---
 
 
-class AppSecEngineerAgentConfig(BaseModel):
-    """Configuration model for the AppSec Engineer Agent."""
-
-    # Required fields
-    role: str = Field(..., description="The role of the agent")
-    goal: str = Field(..., description="The goal of the agent")
-    backstory: str = Field(..., description="The backstory of the agent")
-    tools: List[str] = Field(..., description="List of tools the agent can use")
-    allow_delegation: bool = Field(..., description="Whether the agent can delegate tasks")
-
-    # Optional fields
-    verbose: bool = Field(True, description="Whether to enable verbose output")
-    memory: bool = Field(False, description="Whether to enable memory for the agent")
-    max_iterations: int = Field(5, ge=1, description="Maximum number of iterations")
-    max_rpm: int = Field(10, ge=1, description="Maximum requests per minute")
-    cache: bool = Field(True, description="Whether to enable caching")
-
-    # Semgrep-specific settings
-    max_scan_time: int = Field(60, ge=1, description="Maximum scan time in seconds")
-    max_code_size: int = Field(200, ge=1, description="Maximum code size in KB")
-    rules: List[str] = Field(
-        default_factory=lambda: ["p/security-audit", "p/owasp-top-ten"],
-        description="Semgrep rule sets to use for scanning"
-    )
-
-    # LLM Configuration
-    llm_config: Optional[LLMConfig] = None
-    function_calling_llm: Optional[FunctionCallingLLM] = None
-    
-    # Security settings
-    security_context: Optional[SecurityContext] = None
-
-    @field_validator('tools')
-    def validate_tools(cls, v):
-        if not v:
-            raise ValueError("Tools list cannot be empty")
-        if "semgrep_code_scanner" not in v:
-            raise ValueError("AppSecEngineerAgent requires 'semgrep_code_scanner' tool")
-        return v
-    
-    @model_validator(mode='after')
-    def validate_model(self):
-        # Additional validation can be added here
-        return self
-    
-    model_config = ConfigDict(extra="forbid")
+# --- Remove CodeLanguageDetector Class --- (No longer needed in agent)
 
 
-class CodeLanguageDetector:
-    """Detects the programming language of a code snippet."""
-
-    # Common file extensions by language
-    EXTENSIONS = {
-        "python": [".py"],
-        "javascript": [".js", ".jsx", ".ts", ".tsx"],
-        "java": [".java"],
-        "go": [".go"],
-        "ruby": [".rb"],
-        "php": [".php"],
-        "c": [".c", ".h"],
-        "cpp": [".cpp", ".hpp", ".cc", ".cxx", ".h"],
-    }
-
-    # Common language patterns
-    PATTERNS = {
-        "python": [
-            r"import\s+[\w\.]+",
-            r"from\s+[\w\.]+\s+import",
-            r"def\s+\w+\s*\(.*\):",
-            r"class\s+\w+\s*(\(.*\))?:",
-            r"print\(",
-        ],
-        "javascript": [
-            r"const\s+\w+\s*=",
-            r"let\s+\w+\s*=",
-            r"function\s+\w+\s*\(.*\)\s*{",
-            r"import\s+.*\s+from\s+['\"]",
-            r"export\s+",
-            r"=>\s*{",
-            r"React",
-        ],
-        "java": [
-            r"public\s+class",
-            r"private\s+\w+\s+\w+\s*\(",
-            r"package\s+[\w\.]+;",
-            r"import\s+[\w\.]+;",
-        ],
-        "go": [
-            r"package\s+\w+",
-            r"func\s+\w+\s*\(.*\)\s*.*{",
-            r"import\s+\([\s\S]*?\)",
-            r"type\s+\w+\s+struct\s*{",
-        ],
-        "ruby": [
-            r"require\s+['\"][\w\/]+['\"]",
-            r"def\s+\w+",
-            r"class\s+\w+(\s+<\s+\w+)?",
-            r"module\s+\w+",
-        ],
-        "php": [
-            r"<\?php",
-            r"function\s+\w+\s*\(.*\)\s*{",
-            r"namespace\s+[\w\\]+;",
-            r"use\s+[\w\\]+",
-        ],
-        "c": [
-            r"#include\s+[<\"][\w\.]+[>\"]",
-            r"int\s+main\s*\(.*\)\s*{",
-            r"\w+\s+\w+\s*\(.*\)\s*{",
-            r"struct\s+\w+\s*{",
-        ],
-        "cpp": [
-            r"#include\s+[<\"][\w\.]+[>\"]",
-            r"namespace\s+\w+\s*{",
-            r"class\s+\w+\s*{",
-            r"std::",
-            r"template\s*<",
-        ],
-    }
-
-    @classmethod
-    def detect_language(cls, code: str, filename: Optional[str] = None) -> str:
-        """
-        Detect the programming language of the provided code.
-
-        Args:
-            code: The code to analyze
-            filename: Optional filename that may contain extension hints
-
-        Returns:
-            The detected language or "unknown" if detection fails
-        """
-        # Try to detect from filename extension first
-        if filename:
-            _, ext = os.path.splitext(filename)
-            if ext:
-                for lang, extensions in cls.EXTENSIONS.items():
-                    if ext.lower() in extensions:
-                        return lang
-
-        # Count pattern matches for each language
-        matches = {lang: 0 for lang in cls.PATTERNS}
-        for lang, patterns in cls.PATTERNS.items():
-            for pattern in patterns:
-                matches[lang] += len(re.findall(pattern, code))
-
-        # Return the language with the most matches
-        if matches:
-            best_match = max(matches.items(), key=lambda x: x[1])
-            if best_match[1] > 0:
-                return best_match[0]
-
-        return "unknown"
+# --- Remove SemgrepRunner Class --- (Logic moved to SemgrepTool)
 
 
 class AppSecEngineerAgent(BaseAgent):
-    """AppSec Engineer Agent for code vulnerability analysis.
-    
-    This agent leverages Semgrep to detect vulnerabilities in code and provides
-    analysis and remediation suggestions.
     """
-    
-    name: ClassVar[str] = "AppSecEngineerAgent"
-    description: ClassVar[str] = "Security engineer specialized in code scanning and vulnerability detection"
-    schema_path: ClassVar[str] = "schemas/agent_schema.yaml"
-    
-    def __init__(self, config_path: str = None):
-        """Initialize the AppSec Engineer Agent.
-        
-        Args:
-            config_path: Path to the agent configuration YAML file.
-                If not provided, will look for 'agent.yaml' in the agent's directory.
+    Application Security Engineer Agent that identifies security vulnerabilities in code.
+
+    This agent uses the SemgrepTool to scan code for security issues.
+    It loads its configuration from agent.yaml and initializes the necessary tool.
+    """
+
+    config: AgentYamlModel
+    agent: Agent  # Add type hint for the CrewAI agent instance
+    semgrep_tool: SemgrepTool # Store the tool instance
+
+    def __init__(self):
+        """
+        Initialize the AppSec Engineer Agent. Loads config and initializes the SemgrepTool.
         """
         super().__init__()
-        
-        # Set default config path if not provided
-        if not config_path:
-            agent_dir = os.path.dirname(os.path.abspath(__file__))
-            config_path = os.path.join(agent_dir, "agent.yaml")
-        
-        # Load and validate configuration
-        self.config = self._load_config(config_path)
-        
-        # Initialize tools
-        self.tools = {}
-        self._initialize_tools()
-        
-        # Initialize agent
-        self.agent = self._create_agent()
-    
-    def _load_config(self, config_path: str) -> AppSecEngineerAgentConfig:
-        """Load and validate the agent configuration.
-        
-        Args:
-            config_path: Path to the configuration YAML file.
-            
-        Returns:
-            Validated AppSecEngineerAgentConfig object.
-            
-        Raises:
-            FileNotFoundError: If the configuration file is not found.
-            ValidationError: If the configuration is invalid.
-        """
-        if not os.path.exists(config_path):
-            raise FileNotFoundError(f"Configuration file not found: {config_path}")
-        
-        # Get path to schema
-        schema_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-            self.schema_path
+
+        self.config = self._load_config()
+
+        # Initialize the SemgrepTool
+        # Tool configuration (rules, timeout etc.) should be handled within the tool itself,
+        # potentially loading its own tool.yaml or using defaults.
+        self.semgrep_tool = SemgrepTool()
+
+        # Initialize the CrewAI Agent
+        self.agent = Agent(
+            role=self.config.role,
+            goal=self.config.goal,
+            backstory=self.config.backstory,
+            verbose=self.config.verbose,
+            allow_delegation=self.config.allow_delegation,
+            # Pass the instantiated tool
+            tools=[self.semgrep_tool],
+            # llm=self.get_llm() # Assuming a method to get the LLM
+            max_iter=self.config.max_iterations,
+            max_rpm=self.config.max_rpm,
         )
-        
-        # Validate YAML against schema if schema exists
-        if os.path.exists(schema_path):
-            try:
-                with open(config_path, "r") as file:
-                    config_data = yaml.safe_load(file)
-                
-                validation_result = validate_yaml_against_schema(
-                    config_data, schema_path
-                )
-                
-                if not validation_result.get("is_valid", False):
-                    logger.error(
-                        f"Invalid configuration: {validation_result.get('errors', 'Unknown error')}"
-                    )
-                    raise ValueError(
-                        f"Invalid configuration: {validation_result.get('errors', 'Unknown error')}"
-                    )
-            except Exception as e:
-                logger.error(f"Error validating configuration against schema: {str(e)}")
-                # Continue with Pydantic validation as fallback
-        
-        with open(config_path, "r") as file:
-            config_data = yaml.safe_load(file)
-        
+        logger.info(f"AppSecEngineerAgent initialized with tool: {self.semgrep_tool.name}")
+
+    def _load_config(self) -> AgentYamlModel:
+        """
+        Load the agent configuration from agent.yaml and validate it using Pydantic.
+        """
+        current_dir = Path(__file__).parent
+        config_path = current_dir / "agent.yaml"
+
+        if not config_path.is_file():
+            logger.error(f"Configuration file not found at {config_path}")
+            raise FileNotFoundError(f"Configuration file not found at {config_path}")
+
         try:
-            # Process environment variables if needed
-            if "api_key" in config_data.get("llm_config", {}) and \
-               config_data["llm_config"]["api_key"].startswith("$"):
-                env_var = config_data["llm_config"]["api_key"][1:]
-                config_data["llm_config"]["api_key"] = os.environ.get(env_var)
-            
-            config = AppSecEngineerAgentConfig(**config_data)
-            return config
-        except ValidationError as e:
-            logger.error(f"Invalid configuration: {e}")
+            with open(config_path, "r") as file:
+                yaml_content = yaml.safe_load(file)
+                if not yaml_content:
+                    raise ValueError("YAML file is empty or invalid.")
+
+            # Use the simplified AgentYamlModel
+            validated_config = AgentYamlModel.model_validate(yaml_content)
+            logger.info("Agent configuration loaded and validated successfully.")
+            return validated_config
+
+        except yaml.YAMLError as e:
+            logger.error(f"Error parsing YAML file {config_path}: {e}")
             raise
-    
-    def _initialize_tools(self):
-        """Initialize the tools required by the agent."""
-        # Initialize SemgrepCodeScanner
-        self.tools["semgrep_code_scanner"] = SemgrepCodeScanner(
-            max_scan_time=self.config.max_scan_time,
-            rules=self.config.rules
-        )
-    
-    def _create_agent(self) -> Agent:
-        """Create and configure the CrewAI agent.
-        
-        Returns:
-            Configured CrewAI Agent
-        """
-        agent_config = {
-            "role": self.config.role,
-            "goal": self.config.goal,
-            "backstory": self.config.backstory,
-            "verbose": self.config.verbose,
-            "allow_delegation": self.config.allow_delegation,
-            "tools": [self.tools["semgrep_code_scanner"]],
-            "memory": self.config.memory,
-            "max_iterations": self.config.max_iterations,
-            "max_rpm": self.config.max_rpm,
-            "cache": self.config.cache
-        }
-        
-        # Add LLM config if specified
-        if self.config.llm_config:
-            agent_config["llm_config"] = {
-                k: v for k, v in self.config.llm_config.model_dump().items() 
-                if v is not None
-            }
-        
-        # Add function calling LLM if specified
-        if self.config.function_calling_llm:
-            agent_config["function_calling_llm"] = {
-                k: v for k, v in self.config.function_calling_llm.model_dump().items() 
-                if v is not None
-            }
-        
-        return Agent(**agent_config)
-    
-    def analyze_code(self, code: str, language: str = None) -> Dict:
-        """Analyze code for vulnerabilities using Semgrep.
-        
-        Args:
-            code: The source code to analyze.
-            language: Optional language hint for Semgrep.
-            
-        Returns:
-            Dictionary containing analysis results or error message.
-        """
-        if not code:
-            return {"error": "No code provided for analysis"}
-        
-        if "semgrep_code_scanner" not in self.tools:
-            return {"error": "Semgrep tool not available"}
-        
-        try:
-            # Create a temporary directory for the code
-            temp_dir = Path(f"/tmp/appsec_scan_{uuid.uuid4()}")
-            temp_dir.mkdir(parents=True, exist_ok=True)
-            
-            # Determine filename based on language
-            filename = f"code.{language}" if language else "code.txt"
-            file_path = temp_dir / filename
-            
-            # Write code to file
-            with open(file_path, "w") as f:
-                f.write(code)
-            
-            # Run semgrep scan
-            scanner = cast(SemgrepCodeScanner, self.tools["semgrep_code_scanner"])
-            
-            # Check code size limit
-            code_size_kb = len(code) / 1024
-            if code_size_kb > self.config.max_code_size:
-                return {
-                    "error": (
-                        f"Code size exceeds limit of {self.config.max_code_size} KB "
-                        f"(actual: {code_size_kb:.2f} KB)"
-                    )
-                }
-            
-            # Use the scan_code method
-            scan_result = scanner.scan_code(str(file_path), language)
-            
-            # Generate a formatted report
-            if "findings" in scan_result:
-                scan_result["report"] = scanner.generate_report(scan_result["findings"])
-            
-            # Clean up
-            shutil.rmtree(temp_dir)
-            
-            return scan_result
+        except ValidationError as e:
+            logger.error(f"Configuration validation failed for {config_path}")
+            logger.error(f"Validation Errors: {e}")
+            raise
         except Exception as e:
-            logger.error(f"Error analyzing code: {e}")
-            return {"error": f"Error analyzing code: {str(e)}"}
-    
-    def analyze_repository(self, repo_url: str) -> Dict:
-        """Analyze a Git repository for vulnerabilities.
-        
-        Args:
-            repo_url: URL to the Git repository.
-            
-        Returns:
-            Dictionary containing analysis results or error message.
-        """
-        if not repo_url:
-            return {"error": "No repository URL provided"}
-        
-        if not is_valid_url(repo_url):
-            return {"error": "Invalid repository URL"}
-        
-        if "semgrep_code_scanner" not in self.tools:
-            return {"error": "Semgrep tool not available"}
-        
-        try:
-            # Create a temporary directory for the repository
-            temp_dir = Path(f"/tmp/appsec_repo_{uuid.uuid4()}")
-            temp_dir.mkdir(parents=True, exist_ok=True)
-            
-            # Clone the repository
-            result = subprocess.run(
-                ["git", "clone", repo_url, str(temp_dir)],
-                capture_output=True,
-                text=True,
-                timeout=60
+            logger.error(
+                f"An unexpected error occurred while loading config: {e}"
             )
-            
-            if result.returncode != 0:
-                return {"error": f"Failed to clone repository: {result.stderr}"}
-            
-            # Run semgrep scan
-            scanner = cast(SemgrepCodeScanner, self.tools["semgrep_code_scanner"])
-            
-            # Use the scan_directory method
-            scan_result = scanner.scan_directory(str(temp_dir))
-            
-            # Generate a formatted report
-            if "findings" in scan_result:
-                scan_result["report"] = scanner.generate_report(scan_result["findings"])
-            
-            # Clean up
-            shutil.rmtree(temp_dir)
-            
-            return scan_result
-        except subprocess.TimeoutExpired:
-            return {"error": "Repository cloning timed out"}
-        except Exception as e:
-            logger.error(f"Error analyzing repository: {e}")
-            return {"error": f"Error analyzing repository: {str(e)}"}
-            
-    def generate_vulnerability_report(self, results: Dict) -> Dict:
-        """
-        Generate a comprehensive report of vulnerability findings.
-        
-        Args:
-            results: Scan results from analyze_code or analyze_repository
-            
-        Returns:
-            Dictionary with formatted report
-        """
-        if "error" in results:
-            return {"error": results["error"], "status": "error"}
-            
-        if "findings" not in results:
-            return {
-                "error": "No findings in scan results",
-                "status": "error"
-            }
-            
-        # If report is already generated, return it
-        if "report" in results:
-            return {
-                "report": results["report"],
-                "status": "success"
-            }
-            
-        # Otherwise, generate a new report
-        scanner = cast(SemgrepCodeScanner, self.tools["semgrep_code_scanner"])
-        report = scanner.generate_report(results["findings"])
-        
-        return {
-            "report": report,
-            "status": "success"
-        }
+            raise
 
-    def get_task_result(self, task: Any) -> Dict:
-        """
-        Process the result of a CrewAI task.
+    # --- Remove analyze_code method --- (Handled by SemgrepTool)
 
-        Args:
-            task: The completed task
+    # --- Remove analyze_repository method --- (Handled by SemgrepTool)
 
-        Returns:
-            Dictionary with processed results
-        """
-        # Extract the task output and format it for return
-        try:
-            return {
-                "result": task.output,
-                "status": "success"
-            }
-        except Exception as e:
-            logger.exception(f"Error processing task result: {str(e)}")
-            return {
-                "error": f"Error processing task result: {str(e)}",
-                "status": "error"
-            }
+    # --- Remove _is_valid_github_url method --- (Handled by SemgrepTool or not needed)
 
-    def delegate_to_defect_review(self, findings: List[Dict]) -> Dict:
-        """
-        Delegate vulnerability findings to a Defect Review Agent for deeper analysis.
-        
-        Args:
-            findings: List of vulnerability findings from Semgrep scan
-            
-        Returns:
-            Dictionary with review results or error
-        """
-        if not self.config.allow_delegation:
-            return {"error": "Delegation not allowed by configuration"}
-            
-        if not findings:
-            return {"error": "No findings to review"}
-            
-        try:
-            # In a real implementation, this would create a task for the Defect Review Agent
-            # For now, we'll just return a placeholder
-            return {
-                "message": "Delegated to Defect Review Agent",
-                "status": "delegated",
-                "findings_count": len(findings)
-            }
-        except Exception as e:
-            logger.exception(f"Error delegating to Defect Review Agent: {str(e)}")
-            return {
-                "error": f"Error delegating to Defect Review Agent: {str(e)}",
-                "status": "error"
-            }
+    # --- Remove _clone_repository method --- (Handled by SemgrepTool)
+
+    # --- Remove _get_directory_size method --- (Handled by SemgrepTool or not needed)
+
+    # --- Remove _process_scan_results method --- (Handled by SemgrepTool)
+
+    # --- Remove _forward_to_defect_review method --- (Placeholder removed)
+
+# Example of how to potentially use the agent (outside the class definition)
+# if __name__ == "__main__":
+#     from crewai import Task
+#
+#     appsec_agent_wrapper = AppSecEngineerAgent()
+#     agent = appsec_agent_wrapper.agent # Get the initialized CrewAI agent
+#
+#     # Example Task: Scan a code snippet
+#     scan_task = Task(
+#         description=(
+#             "Scan the provided Python code snippet for security vulnerabilities. "
+#             "Use the semgrep_code_scanner tool."
+#         ),
+#         expected_output="A JSON report summarizing the findings from the Semgrep scan.",
+#         agent=agent,
+#         inputs={"code": "import os\nos.system('ls')", "language": "python"}
+#         # Note: inputs need to match the SemgrepTool's args_schema
+#     )
+#
+#     # Example Task: Scan a file path
+#     # scan_file_task = Task(
+#     #     description="Scan the file /path/to/vulnerable.py for security issues.",
+#     #     expected_output="A JSON report summarizing the findings.",
+#     #     agent=agent,
+#     #     inputs={"file_path": "/path/to/vulnerable.py"}
+#     # )
+#
+#     # To run the task, you would typically use a Crew
+#     # result = crew.kickoff(inputs=scan_task.inputs)
+#     # print(result)

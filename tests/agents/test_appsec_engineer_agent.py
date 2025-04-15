@@ -1,274 +1,120 @@
 """Tests for the AppSec Engineer Agent."""
 
 import os
-import tempfile
-from pathlib import Path
-from unittest import mock
-
-import pytest
+import shutil
+from unittest.mock import patch, MagicMock
 import yaml
+import pytest
+from pydantic import ValidationError
 
-from agents.appsec_engineer_agent.appsec_engineer_agent import (
-    AppSecEngineerAgent,
-    AppSecEngineerAgentConfig,
-    CodeLanguageDetector,
+# Import the refactored agent and the tool it uses
+from agents.appsec_engineer_agent.appsec_engineer_agent import AppSecEngineerAgent, AgentYamlModel
+from tools.semgrep_scanner.semgrep_scanner import SemgrepTool
+
+# Remove unused RateLimiter import
+# from utils.rate_limiter import RateLimiter
+
+# Check if semgrep executable exists - less critical now as tests should mock the tool
+SEMGREP_EXECUTABLE = shutil.which("semgrep")
+skip_if_no_semgrep = pytest.mark.skipif(
+    SEMGREP_EXECUTABLE is None, reason="Semgrep executable not found in PATH (though tests should mock)"
 )
 
+# Mock config data matching the simplified AgentYamlModel
+MOCK_AGENT_YAML_DATA = {
+    "role": "Test AppSec Engineer",
+    "goal": "Test code analysis",
+    "backstory": "A test agent.",
+    "allow_delegation": False,
+    "verbose": True,
+    "memory": False,
+    "max_iterations": 5,
+    "max_rpm": 20,
+    "cache": False,
+    # Extra fields ignored by AgentYamlModel due to extra='ignore'
+    "supported_languages": ["python"],
+    "config": {"temp_dir": "/tmp/test"},
+}
 
 @pytest.fixture
-def valid_config():
-    """Create a valid agent configuration."""
-    return {
-        "role": "Test AppSec Engineer",
-        "goal": "Test code for security vulnerabilities",
-        "backstory": "I am a test security engineer",
-        "tools": ["semgrep_code_scanner"],
-        "allow_delegation": True,
-        "verbose": True,
-        "memory": False,
-        "max_iterations": 5,
-        "max_rpm": 10,
-        "cache": True,
-        "max_scan_time": 60,
-        "max_code_size": 200,
-        "rules": ["p/security-audit"],
-    }
-
+def mock_yaml_load(monkeypatch):
+    """Fixture to mock yaml.safe_load."""
+    mock_load = MagicMock(return_value=MOCK_AGENT_YAML_DATA)
+    monkeypatch.setattr("yaml.safe_load", mock_load)
+    # Also mock Path.is_file to always return True for config loading
+    monkeypatch.setattr("pathlib.Path.is_file", MagicMock(return_value=True))
+    return mock_load
 
 @pytest.fixture
-def mock_semgrep_scanner():
-    """Mock the SemgrepCodeScanner tool."""
-    with mock.patch("agents.appsec_engineer_agent.appsec_engineer_agent.SemgrepCodeScanner") as mock_scanner:
-        scanner_instance = mock.MagicMock()
-        mock_scanner.return_value = scanner_instance
-        yield scanner_instance
-
-
-@pytest.fixture
-def mock_agent():
-    """Mock the CrewAI Agent class."""
-    with mock.patch("agents.appsec_engineer_agent.appsec_engineer_agent.Agent") as mock_agent:
-        agent_instance = mock.MagicMock()
-        mock_agent.return_value = agent_instance
-        yield mock_agent
-
-
-class TestCodeLanguageDetector:
-    """Tests for the CodeLanguageDetector class."""
-
-    def test_detect_language_from_filename(self):
-        """Test detecting language from a filename."""
-        # Test Python detection
-        assert CodeLanguageDetector.detect_language("", "test.py") == "python"
-        # Test JavaScript detection
-        assert CodeLanguageDetector.detect_language("", "test.js") == "javascript"
-        # Test Java detection
-        assert CodeLanguageDetector.detect_language("", "test.java") == "java"
-        # Test unknown extension
-        assert CodeLanguageDetector.detect_language("", "test.xyz") == "unknown"
-
-    def test_detect_language_from_content(self):
-        """Test detecting language from code content."""
-        # Test Python detection
-        python_code = """
-        import os
-        from pathlib import Path
-        
-        def main():
-            print("Hello, world!")
-        """
-        assert CodeLanguageDetector.detect_language(python_code) == "python"
-        
-        # Test JavaScript detection
-        js_code = """
-        const fs = require('fs');
-        
-        function main() {
-            console.log("Hello, world!");
-        }
-        """
-        assert CodeLanguageDetector.detect_language(js_code) == "javascript"
-
-
-def test_config_validation(valid_config):
-    """Test that the configuration validation works."""
-    # Valid configuration
-    config = AppSecEngineerAgentConfig(**valid_config)
-    assert config.role == valid_config["role"]
-    assert config.goal == valid_config["goal"]
-    assert config.tools == valid_config["tools"]
-    
-    # Invalid configuration - missing required field
-    invalid_config = valid_config.copy()
-    del invalid_config["role"]
-    with pytest.raises(ValueError):
-        AppSecEngineerAgentConfig(**invalid_config)
-    
-    # Invalid configuration - empty tools list
-    invalid_config = valid_config.copy()
-    invalid_config["tools"] = []
-    with pytest.raises(ValueError):
-        AppSecEngineerAgentConfig(**invalid_config)
-    
-    # Invalid configuration - missing required tool
-    invalid_config = valid_config.copy()
-    invalid_config["tools"] = ["some_other_tool"]
-    with pytest.raises(ValueError):
-        AppSecEngineerAgentConfig(**invalid_config)
-
-
-def test_agent_initialization_with_temp_config(valid_config, mock_semgrep_scanner, mock_agent):
-    """Test agent initialization with a temporary config file."""
-    # Create a temporary config file
-    with tempfile.NamedTemporaryFile(mode="w+", suffix=".yaml", delete=False) as temp_file:
-        yaml.dump(valid_config, temp_file)
-        temp_file_path = temp_file.name
-    
+def appsec_agent(mock_yaml_load): # Depend on the mock fixture
+    """Create an AppSec Engineer Agent instance for testing, using mocked config."""
     try:
-        # Initialize agent with the temp config
-        with mock.patch("agents.appsec_engineer_agent.appsec_engineer_agent.validate_yaml_against_schema") as mock_validate:
-            mock_validate.return_value = {"is_valid": True}
-            agent = AppSecEngineerAgent(config_path=temp_file_path)
-            
-            # Verify agent was initialized correctly
-            assert agent.config.role == valid_config["role"]
-            assert agent.config.goal == valid_config["goal"]
-            assert "semgrep_code_scanner" in agent.tools
-            
-            # Verify the Agent was created with the right parameters
-            call_args = mock_agent.call_args[1]
-            assert call_args["role"] == valid_config["role"]
-            assert call_args["goal"] == valid_config["goal"]
-            assert call_args["backstory"] == valid_config["backstory"]
-    finally:
-        # Clean up
-        if os.path.exists(temp_file_path):
-            os.unlink(temp_file_path)
+        # Initialization should now use the mocked yaml.safe_load
+        agent_wrapper = AppSecEngineerAgent()
+        return agent_wrapper
+    except Exception as e:
+        pytest.fail(f"Failed to initialize AppSecEngineerAgent with mocked config: {e}")
 
+# --- Remove TestCodeLanguageDetector --- (Class removed from agent)
 
-def test_analyze_code_size_limit(valid_config, mock_semgrep_scanner, mock_agent):
-    """Test code size limit when analyzing code."""
-    # Create a temporary config file
-    with tempfile.NamedTemporaryFile(mode="w+", suffix=".yaml", delete=False) as temp_file:
-        yaml.dump(valid_config, temp_file)
-        temp_file_path = temp_file.name
-    
-    try:
-        # Initialize agent with the temp config
-        with mock.patch("agents.appsec_engineer_agent.appsec_engineer_agent.validate_yaml_against_schema") as mock_validate:
-            mock_validate.return_value = {"is_valid": True}
-            agent = AppSecEngineerAgent(config_path=temp_file_path)
-            
-            # Create code larger than the size limit (200 KB)
-            large_code = "x" * (agent.config.max_code_size * 1024 + 1)
-            
-            # Analyze code
-            result = agent.analyze_code(large_code)
-            
-            # Verify the result contains an error about code size
-            assert "error" in result
-            assert f"Code size exceeds limit of {agent.config.max_code_size} KB" in result["error"]
-            
-            # Mock scanner should not have been called
-            mock_semgrep_scanner.scan_code.assert_not_called()
-    finally:
-        # Clean up
-        if os.path.exists(temp_file_path):
-            os.unlink(temp_file_path)
+# --- Remove TestSemgrepRunner --- (Class removed from agent)
 
+class TestAppSecEngineerAgent:
+    """Test the refactored AppSec Engineer Agent functionality."""
 
-def test_analyze_code_success(valid_config, mock_semgrep_scanner, mock_agent):
-    """Test successful code analysis."""
-    # Create a temporary config file
-    with tempfile.NamedTemporaryFile(mode="w+", suffix=".yaml", delete=False) as temp_file:
-        yaml.dump(valid_config, temp_file)
-        temp_file_path = temp_file.name
-    
-    try:
-        # Mock scanner results
-        mock_findings = [
-            {
-                "rule_id": "test-rule",
-                "message": "Test vulnerability",
-                "severity": "high",
-            }
-        ]
-        mock_semgrep_scanner.scan_code.return_value = {"findings": mock_findings}
-        mock_semgrep_scanner.generate_report.return_value = {
-            "summary": "Found 1 security issue",
-            "findings_count": 1,
-            "severity_summary": {"high": 1},
-        }
-        
-        # Initialize agent with the temp config
-        with mock.patch("agents.appsec_engineer_agent.appsec_engineer_agent.validate_yaml_against_schema") as mock_validate:
-            mock_validate.return_value = {"is_valid": True}
-            agent = AppSecEngineerAgent(config_path=temp_file_path)
-            
-            # Create some valid code
-            code = "def test(): pass"
-            
-            # Analyze code
-            with mock.patch("pathlib.Path.mkdir") as mock_mkdir, \
-                 mock.patch("builtins.open", mock.mock_open()), \
-                 mock.patch("shutil.rmtree"):
-                result = agent.analyze_code(code)
-                
-                # Verify the result
-                assert "findings" in result
-                assert result["findings"] == mock_findings
-                assert "report" in result
-                assert result["report"]["findings_count"] == 1
-    finally:
-        # Clean up
-        if os.path.exists(temp_file_path):
-            os.unlink(temp_file_path)
+    def test_initialization_success(self, appsec_agent):
+        """Test that the agent initializes correctly with mocked config."""
+        assert appsec_agent is not None
+        # Check config loaded correctly via Pydantic model
+        assert isinstance(appsec_agent.config, AgentYamlModel)
+        assert appsec_agent.config.role == MOCK_AGENT_YAML_DATA["role"]
+        assert appsec_agent.config.goal == MOCK_AGENT_YAML_DATA["goal"]
+        assert appsec_agent.config.max_iterations == MOCK_AGENT_YAML_DATA["max_iterations"]
 
+        # Check the underlying CrewAI agent instance
+        assert hasattr(appsec_agent, 'agent')
+        assert appsec_agent.agent.role == MOCK_AGENT_YAML_DATA["role"]
+        assert appsec_agent.agent.goal == MOCK_AGENT_YAML_DATA["goal"]
+        assert appsec_agent.agent.allow_delegation == MOCK_AGENT_YAML_DATA["allow_delegation"]
 
-def test_generate_vulnerability_report(valid_config, mock_semgrep_scanner, mock_agent):
-    """Test generating a vulnerability report."""
-    # Create a temporary config file
-    with tempfile.NamedTemporaryFile(mode="w+", suffix=".yaml", delete=False) as temp_file:
-        yaml.dump(valid_config, temp_file)
-        temp_file_path = temp_file.name
-    
-    try:
-        # Mock scanner results
-        mock_findings = [
-            {
-                "rule_id": "test-rule",
-                "message": "Test vulnerability",
-                "severity": "high",
-            }
-        ]
-        mock_report = {
-            "summary": "Found 1 security issue",
-            "findings_count": 1,
-            "severity_summary": {"high": 1},
-        }
-        mock_semgrep_scanner.generate_report.return_value = mock_report
-        
-        # Initialize agent with the temp config
-        with mock.patch("agents.appsec_engineer_agent.appsec_engineer_agent.validate_yaml_against_schema") as mock_validate:
-            mock_validate.return_value = {"is_valid": True}
-            agent = AppSecEngineerAgent(config_path=temp_file_path)
-            
-            # Generate report without existing report
-            result = agent.generate_vulnerability_report({"findings": mock_findings})
-            
-            # Verify the result
-            assert result["status"] == "success"
-            assert result["report"] == mock_report
-            
-            # Generate report with existing report
-            result = agent.generate_vulnerability_report({"findings": mock_findings, "report": mock_report})
-            
-            # Verify the result (should use existing report)
-            assert result["status"] == "success"
-            assert result["report"] == mock_report
-            # Should only call generate_report once
-            assert mock_semgrep_scanner.generate_report.call_count == 1
-    finally:
-        # Clean up
-        if os.path.exists(temp_file_path):
-            os.unlink(temp_file_path)
+        # Check that the SemgrepTool is instantiated and assigned
+        assert hasattr(appsec_agent, 'semgrep_tool')
+        assert isinstance(appsec_agent.semgrep_tool, SemgrepTool)
+
+        # Check that the tool is correctly passed to the CrewAI agent
+        assert appsec_agent.agent.tools == [appsec_agent.semgrep_tool]
+
+    def test_initialization_missing_config_file(self, monkeypatch):
+        """Test initialization failure when agent.yaml is missing."""
+        # Mock Path.is_file to return False
+        monkeypatch.setattr("pathlib.Path.is_file", MagicMock(return_value=False))
+        with pytest.raises(FileNotFoundError):
+            AppSecEngineerAgent()
+
+    def test_initialization_invalid_yaml(self, monkeypatch):
+        """Test initialization failure with invalid YAML content."""
+        mock_load = MagicMock(side_effect=yaml.YAMLError("Invalid YAML"))
+        monkeypatch.setattr("yaml.safe_load", mock_load)
+        monkeypatch.setattr("pathlib.Path.is_file", MagicMock(return_value=True))
+        with pytest.raises(yaml.YAMLError):
+            AppSecEngineerAgent()
+
+    def test_initialization_validation_error(self, monkeypatch):
+        """Test initialization failure with invalid config data (missing required field)."""
+        invalid_data = MOCK_AGENT_YAML_DATA.copy()
+        del invalid_data["role"] # Remove a required field
+        mock_load = MagicMock(return_value=invalid_data)
+        monkeypatch.setattr("yaml.safe_load", mock_load)
+        monkeypatch.setattr("pathlib.Path.is_file", MagicMock(return_value=True))
+        with pytest.raises(ValidationError):
+            AppSecEngineerAgent()
+
+    # --- Remove tests related to analyze_code --- (Method removed)
+
+    # --- Remove tests related to analyze_repository --- (Method removed)
+
+    # --- Remove test_github_url_validation --- (Method removed)
+
+    # --- Remove test_process_scan_results --- (Method removed)
+
+    # --- Remove test_process_scan_results_with_error --- (Method removed)

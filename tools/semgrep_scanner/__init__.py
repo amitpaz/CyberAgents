@@ -1,5 +1,5 @@
-"""Semgrep scanner module for security code analysis."""
+"""Semgrep Scanner module for code security analysis."""
 
-from .semgrep_scanner import SemgrepTool as SemgrepCodeScanner
+from tools.semgrep_scanner.semgrep_scanner import SemgrepInput, SemgrepTool
 
-__all__ = ["SemgrepCodeScanner"]
+__all__ = ["SemgrepTool", "SemgrepInput"]
