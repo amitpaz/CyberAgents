@@ -85,6 +85,7 @@ CyberAgents/
 | Threat Intel Agent        | Assesses domain security threats using VirusTotal              | 🧪 In Progress       | 0.1.0   | Apr 2024     |
 | Exposure Analyst Agent    | Analyzes external exposure/attack surface (subdomains, Shodan, ASN, Nmap) | 🧪 In Progress | 0.1.0   | Apr 2024     |
 | Email Security Agent      | Validates SPF and DMARC DNS records                            | 🧪 In Progress       | 0.1.0   | Apr 2024     |
+| Cloud Security            | Validate & Enforces cloud security configs                     | 🧪 In Progress       | 0.1.0   | Apr 2024     |
 | *Defect Review Agent*     | *(Placeholder) Reviews code/system defects for security*      | ❌ Draft             | -       | -            |
 | *SOC Analyst*             | *(Placeholder) Simulates L1-2 SOC analyst duties*             | ❌ Draft             | -       | -            |
 | *Incident Responder*      | *(Placeholder) Performs containment, eradication, recovery*     | ❌ Draft             | -       | -            |
@@ -96,7 +97,6 @@ CyberAgents/
 | *Change Management*       | *(Placeholder) Assesses security impacts of changes*           | ❌ Draft             | -       | -            |
 | *Network Security*        | *(Placeholder) Monitors/enforces network rules*                | ❌ Draft             | -       | -            |
 | *Endpoint Security*       | *(Placeholder) Manages EDR logic/response*                     | ❌ Draft             | -       | -            |
-| *Cloud Security*          | *(Placeholder) Enforces cloud security configs*                | ❌ Draft             | -       | -            |
 | *Security Reporting*      | *(Placeholder) Generates security KPIs/reports*                | ❌ Draft             | -       | -            |
 
 > **Legend**:
