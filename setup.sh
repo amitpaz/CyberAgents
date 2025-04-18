@@ -142,14 +142,25 @@ if ! command_exists poetry; then
     export PATH="$HOME/.local/bin:$PATH"
     echo "Poetry installed. You might need to restart your shell or run 'source \$HOME/.poetry/env' for the change to take effect permanently."
     # Verify
-     if ! command_exists poetry; then
+    if ! command_exists poetry; then
         echo "ERROR: Poetry installation failed or it's not in PATH. Please check the output above."
         exit 1
-     fi
+    fi
 else
     echo "Poetry found."
 fi
 poetry --version
+
+# Check Poetry version and install shell plugin if needed for Poetry 2.0.0+
+POETRY_VERSION=$(poetry --version | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+')
+POETRY_MAJOR=$(echo $POETRY_VERSION | cut -d. -f1)
+
+if [[ "$POETRY_MAJOR" -ge "2" ]]; then
+    echo "Poetry 2.0.0+ detected. Installing poetry shell plugin..."
+    poetry self add poetry-plugin-shell
+else
+    echo "Poetry version is less than 2.0.0. Shell plugin not required."
+fi
 
 # --- Ollama Setup (Conditional) ---
 # Ollama installation and setup will only run if the environment variable
